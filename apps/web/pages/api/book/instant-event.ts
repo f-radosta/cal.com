@@ -3,12 +3,21 @@ import type { NextApiRequest } from "next";
 import { getServerSession } from "@calcom/features/auth/lib/getServerSession";
 import { getInstantBookingCreateService } from "@calcom/features/bookings/di/InstantBookingCreateService.container";
 import { checkRateLimitAndThrowError } from "@calcom/lib/checkRateLimitAndThrowError";
+import { HttpError } from "@calcom/lib/http-error";
 import getIP from "@calcom/lib/getIP";
 import { piiHasher } from "@calcom/lib/server/PiiHasher";
 import { defaultResponder } from "@calcom/lib/server/defaultResponder";
 import { CreationSource } from "@calcom/prisma/enums";
 
 async function handler(req: NextApiRequest & { userId?: number }) {
+  // Only allow bookings from authorized platforms (platby.synaptica.cz)
+  if (
+    process.env.SYNAPTICA_API_SECRET &&
+    req.headers["x-synaptica-secret"] !== process.env.SYNAPTICA_API_SECRET
+  ) {
+    throw new HttpError({ statusCode: 401, message: "Unauthorized" });
+  }
+
   const userIp = getIP(req);
 
   await checkRateLimitAndThrowError({
