@@ -3,6 +3,7 @@ import { withAppDirSsr } from "app/WithAppDirSsr";
 import type { PageProps } from "app/_types";
 import { generateMeetingMetadata } from "app/_utils";
 import { cookies, headers } from "next/headers";
+import { notFound } from "next/navigation";
 
 import { getOrgFullOrigin } from "@calcom/features/ee/organizations/lib/orgDomains";
 import { loadTranslations } from "@calcom/i18n/server";
@@ -65,6 +66,11 @@ const ServerPage = async ({ params, searchParams }: PageProps) => {
   const props = await getData(
     buildLegacyCtx(await headers(), await cookies(), await params, await searchParams)
   );
+
+  // Return 404 for hidden event types
+  if (props.eventData?.hidden) {
+    notFound();
+  }
 
   const eventLocale = props.eventData?.interfaceLanguage;
   const ns = "common";
