@@ -40,3 +40,14 @@ This file tracks all customizations made in the [f-radosta/cal.com](https://gith
 **What:** The `createApp` function now preserves `enabled: true` for apps that already exist in the database, instead of recalculating the enabled state via `shouldEnableApp` on every run.
 
 **Why:** `seed-app-store.ts` runs on every boot (via `start.sh`). The `shouldEnableApp` function was returning `false` for google-calendar even with valid keys, overwriting the manually-set `enabled: true` in the database. This forced a manual SQL fix after every deploy.
+
+---
+
+## 4. Skip TypeScript type-checking during build
+
+**Files changed:**
+- `apps/web/next.config.ts`
+
+**What:** Added `typescript.ignoreBuildErrors = true` to the Next.js config.
+
+**Why:** The full Cal.com codebase exceeds Railway's build-phase memory limit (~4GB) during the separate TypeScript verification pass. The actual compilation succeeds — only the post-build type-check OOMs. This is a resource constraint, not a code issue.

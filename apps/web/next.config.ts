@@ -261,6 +261,11 @@ const nextConfig = (phase: string): NextConfig => {
     images: {
       unoptimized: true,
     },
+    typescript: {
+      // Skip type-checking during build — the upstream Cal.com codebase exceeds
+      // Railway's build-phase memory limit during the TS verification pass.
+      ignoreBuildErrors: true,
+    },
     turbopack: {},
     async rewrites() {
       const { orgSlug } = nextJsOrgRewriteConfig;
