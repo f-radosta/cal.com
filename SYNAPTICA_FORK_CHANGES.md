@@ -11,11 +11,11 @@ This file tracks all customizations made in the [f-radosta/cal.com](https://gith
 - `apps/web/pages/api/book/recurring-event.ts`
 - `apps/web/pages/api/book/instant-event.ts`
 
-**What:** Each booking endpoint checks for a `x-synaptica-secret` header. If the `SYNAPTICA_API_SECRET` env var is set and the header doesn't match, the request is rejected with 401.
+**What:** Each booking endpoint checks for a `x-synaptica-secret` header. If the `SYNAPTICA_API_SECRET` env var is set and the header doesn't match, the request is rejected with 401. When `SYNAPTICA_API_SECRET` is not set, the check is bypassed (dev mode).
 
-**Why:** Prevents unauthorized direct calls to the booking API. Only our n8n workflows (which know the secret) can create bookings.
+**Why:** Prevents unauthorized direct calls to the booking API. Only our n8n workflows (which know the secret) can create bookings. The Cal.com upstream has no auth on these endpoints by design.
 
-**Env var:** `SYNAPTICA_API_SECRET` — set in Railway. Any random string works; it's compared as a plain equality check, not a hash.
+**Env var:** `SYNAPTICA_API_SECRET` — set in Railway. Any random string works; it's compared as a plain equality check, not a hash. n8n workflows must send the matching value in the `x-synaptica-secret` HTTP header.
 
 ---
 

@@ -36,11 +36,11 @@ import { isEventTypeLoggingEnabled } from "@calcom/features/bookings/lib/isEvent
 import type { BookingEventHandlerService } from "@calcom/features/bookings/lib/onBookingEvents/BookingEventHandlerService";
 import type { BookingRescheduledPayload } from "@calcom/features/bookings/lib/onBookingEvents/types.d";
 import type { BookingEmailAndSmsTasker } from "@calcom/features/bookings/lib/tasker/BookingEmailAndSmsTasker";
+import { BookingAccessService } from "@calcom/features/bookings/services/BookingAccessService";
 import { CalendarEventBuilder } from "@calcom/features/CalendarEventBuilder";
 import { getSpamCheckService } from "@calcom/features/di/watchlist/containers/SpamCheckService.container";
 import { CreditService } from "@calcom/features/ee/billing/credit-service";
 import { getBookerBaseUrl } from "@calcom/features/ee/organizations/lib/getBookerUrlServer";
-import AssignmentReasonRecorder from "@calcom/features/ee/round-robin/assignmentReason/AssignmentReasonRecorder";
 import { BookingLocationService } from "@calcom/features/ee/round-robin/lib/bookingLocationService";
 import { getAllWorkflowsFromEventType } from "@calcom/features/ee/workflows/lib/getAllWorkflowsFromEventType";
 import { WorkflowService } from "@calcom/features/ee/workflows/lib/service/WorkflowService";
@@ -68,6 +68,7 @@ import {
   scheduleTrigger,
 } from "@calcom/features/webhooks/lib/scheduleTrigger";
 import type { EventPayloadType, EventTypeInfo } from "@calcom/features/webhooks/lib/sendPayload";
+import { getTranslation } from "@calcom/i18n/server";
 import { groupHostsByGroupId } from "@calcom/lib/bookings/hostGroupUtils";
 import { shouldIgnoreContactOwner } from "@calcom/lib/bookings/routing/utils";
 import { getVideoCallUrlFromCalEvent } from "@calcom/lib/CalEventParser";
@@ -82,7 +83,6 @@ import { criticalLogger } from "@calcom/lib/logger.server";
 import { getPiiFreeCalendarEvent, getPiiFreeEventType } from "@calcom/lib/piiFreeData";
 import { safeStringify } from "@calcom/lib/safeStringify";
 import { getServerErrorFromUnknown } from "@calcom/lib/server/getServerErrorFromUnknown";
-import { getTranslation } from "@calcom/i18n/server";
 import { getTimeFormatStringFromUserTimeFormat } from "@calcom/lib/timeFormat";
 import { distributedTracing } from "@calcom/lib/tracing/factory";
 import type { PrismaClient } from "@calcom/prisma";
@@ -495,10 +495,12 @@ async function validateRescheduleRestrictions({
   rescheduleUid,
   userId,
   eventType,
+  prismaClient,
 }: {
   rescheduleUid: string | null | undefined;
   userId: number | null;
   eventType: { seatsPerTimeSlot: number | null; minimumRescheduleNotice: number | null } | null;
+  prismaClient: PrismaClient;
 }): Promise<void> {
   if (!rescheduleUid || !eventType) {
     return; // Not a reschedule, skip validation
@@ -521,8 +523,24 @@ async function validateRescheduleRestrictions({
     const isUserOrganizer =
       userId && originalRescheduledBooking.userId && userId === originalRescheduledBooking.userId;
 
-    // Check minimum reschedule notice (only for non-organizers)
+    // Admins bypass notice restrictions
+    const isAdmin =
+      userId &&
+      (await new BookingAccessService(prismaClient).isUserAdminOfBooking({
+        userId,
+        bookingUid: actualRescheduleUid,
+      }));
+    if (isAdmin) {
+      return;
+    }
+
+    // Check minimum reschedule notice (attendee notice for non-organizers, organizer notice for organizers)
     const { minimumRescheduleNotice } = originalRescheduledBooking.eventType || {};
+    const eventTypeMetadata = originalRescheduledBooking.eventType?.metadata as
+      | { rescheduleNoticeOrganizer?: number }
+      | undefined;
+    const rescheduleNoticeOrganizer = eventTypeMetadata?.rescheduleNoticeOrganizer ?? null;
+
     if (
       !isUserOrganizer &&
       isWithinMinimumRescheduleNotice(originalRescheduledBooking.startTime, minimumRescheduleNotice ?? null)
@@ -530,6 +548,16 @@ async function validateRescheduleRestrictions({
       throw new HttpError({
         statusCode: 403,
         message: "Rescheduling is not allowed within the minimum notice period before the event",
+      });
+    }
+
+    if (
+      isUserOrganizer &&
+      isWithinMinimumRescheduleNotice(originalRescheduledBooking.startTime, rescheduleNoticeOrganizer)
+    ) {
+      throw new HttpError({
+        statusCode: 403,
+        message: "Rescheduling is not allowed within the organizer notice period before the event",
       });
     }
   } catch (error) {
@@ -633,6 +661,7 @@ async function handler(
           minimumRescheduleNotice: eventType.minimumRescheduleNotice ?? null,
         }
       : null,
+    prismaClient: deps.prismaClient,
   });
 
   const bookingDataSchema = bookingDataSchemaGetter({
@@ -885,7 +914,7 @@ async function handler(
   });
 
   const contactOwnerEmail = skipContactOwner ? null : contactOwnerFromReq;
-  const crmRecordId: string | undefined = reqBody.crmRecordId ?? undefined;
+  const _crmRecordId: string | undefined = reqBody.crmRecordId ?? undefined;
 
   let routingFormResponse = null;
 
@@ -1438,7 +1467,7 @@ async function handler(
     tracingLogger.info("Removed guests from the booking", guestsRemoved);
   }
 
-  const seed = `${organizerUser.username}:${dayjs(reqBody.start).utc().format()}:${new Date().getTime()}`;
+  const seed = `${organizerUser.username}:${dayjs(reqBody.start).utc().format()}:${Date.now()}`;
   const uid = translator.fromUUID(uuidv5(seed, uuidv5.URL));
 
   // For static link based video apps, it would have the static URL value instead of it's type(e.g. integrations:campfire_video)
@@ -1514,7 +1543,7 @@ async function handler(
 
   //update cal event responses with latest location value , later used by webhook
   if (reqBody.calEventResponses)
-    reqBody.calEventResponses["location"].value = {
+    reqBody.calEventResponses.location.value = {
       value: platformBookingLocation ?? bookingLocation,
       optionValue: "",
     };
@@ -2040,7 +2069,7 @@ async function handler(
         }
       }
 
-      if (booking && booking.id && eventType.seatsPerTimeSlot) {
+      if (booking?.id && eventType.seatsPerTimeSlot) {
         const currentAttendee = booking.attendees.find(
           (attendee) =>
             attendee.email === bookingData.responses.email ||
@@ -2197,7 +2226,7 @@ async function handler(
     results = updateManager.results;
     referencesToCreate = updateManager.referencesToCreate;
 
-    videoCallUrl = evt.videoCallData && evt.videoCallData.url ? evt.videoCallData.url : null;
+    videoCallUrl = evt.videoCallData?.url ? evt.videoCallData.url : null;
 
     // This gets overridden when creating the event - to check if notes have been hidden or not. We just reset this back
     // to the default description when we are sending the emails.
@@ -2211,7 +2240,7 @@ async function handler(
     metadata = videoMetadata;
     videoCallUrl = _videoCallUrl;
 
-    const isThereAnIntegrationError = results && results.some((res) => !res.success);
+    const isThereAnIntegrationError = results?.some((res) => !res.success);
 
     if (isThereAnIntegrationError) {
       const error = {
@@ -2336,7 +2365,7 @@ async function handler(
 
     results = createManager.results;
     referencesToCreate = createManager.referencesToCreate;
-    videoCallUrl = evt.videoCallData && evt.videoCallData.url ? evt.videoCallData.url : null;
+    videoCallUrl = evt.videoCallData?.url ? evt.videoCallData.url : null;
 
     if (results.length > 0 && results.every((res) => !res.success)) {
       const error = {

@@ -1,7 +1,6 @@
 import { isWithinMinimumRescheduleNotice } from "@calcom/features/bookings/lib/reschedule/isWithinMinimumRescheduleNotice";
 import { BookingStatus, SchedulingType } from "@calcom/prisma/enums";
 import type { ActionType } from "@calcom/ui/components/table";
-
 import type { BookingItemProps } from "../types";
 
 export interface BookingActionContext {
@@ -249,7 +248,7 @@ export function isActionDisabled(actionId: string, context: BookingActionContext
 
   switch (actionId) {
     case "reschedule":
-    case "reschedule_request":
+    case "reschedule_request": {
       // Only apply minimum reschedule notice restriction if user is NOT the organizer
       // If user is an attendee (or not authenticated), apply the restriction
       const isUserOrganizer =
@@ -270,8 +269,25 @@ export function isActionDisabled(actionId: string, context: BookingActionContext
         isDisabledRescheduling ||
         isWithinMinimumNotice
       );
-    case "cancel":
-      return isDisabledCancelling || isBookingInPast || isCancelled || isRejected;
+    }
+    case "cancel": {
+      const isUserOrganizer =
+        !isAttendee &&
+        booking.loggedInUser?.userId &&
+        booking.user?.id &&
+        booking.loggedInUser.userId === booking.user.id;
+      const cancelNoticeOrganizer =
+        (booking.eventType.metadata as { cancelNoticeOrganizer?: number } | undefined)
+          ?.cancelNoticeOrganizer ?? null;
+      const cancelNoticeAttendee =
+        (booking.eventType.metadata as { cancelNoticeAttendee?: number } | undefined)?.cancelNoticeAttendee ??
+        null;
+      const isWithinCancelNotice = isWithinMinimumRescheduleNotice(
+        new Date(booking.startTime),
+        isUserOrganizer ? cancelNoticeOrganizer : cancelNoticeAttendee
+      );
+      return isDisabledCancelling || isBookingInPast || isCancelled || isRejected || isWithinCancelNotice;
+    }
     case "view_recordings":
       return !(isBookingInPast && booking.status === BookingStatus.ACCEPTED && context.isCalVideoLocation);
     case "meeting_session_details":

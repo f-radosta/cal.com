@@ -1,15 +1,16 @@
 // page can be a server component
-import type { GetServerSidePropsContext } from "next";
-import { URLSearchParams } from "node:url";
-import { z } from "zod";
 
+import { URLSearchParams } from "node:url";
 import { getServerSession } from "@calcom/features/auth/lib/getServerSession";
 import { buildEventUrlFromBooking } from "@calcom/features/bookings/lib/buildEventUrlFromBooking";
 import { determineReschedulePreventionRedirect } from "@calcom/features/bookings/lib/reschedule/determineReschedulePreventionRedirect";
+import { BookingAccessService } from "@calcom/features/bookings/services/BookingAccessService";
 import { getDefaultEvent } from "@calcom/features/eventtypes/lib/defaultEvents";
 import { UserRepository } from "@calcom/features/users/repositories/UserRepository";
 import { maybeGetBookingUidFromSeat } from "@calcom/lib/server/maybeGetBookingUidFromSeat";
 import prisma, { bookingMinimalSelect } from "@calcom/prisma";
+import type { GetServerSidePropsContext } from "next";
+import { z } from "zod";
 
 const querySchema = z.object({
   uid: z.string(),
@@ -61,6 +62,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
           disableRescheduling: true,
           allowReschedulingCancelledBookings: true,
           minimumRescheduleNotice: true,
+          metadata: true,
           team: {
             select: {
               id: true,
@@ -119,6 +121,14 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
     } as const;
   }
 
+  // Check if user is admin to bypass notice restrictions
+  const isAdmin =
+    session?.user?.id &&
+    (await new BookingAccessService(prisma).isUserAdminOfBooking({
+      userId: session.user.id,
+      bookingUid: uid,
+    }));
+
   // Check if reschedule should be prevented based on booking status and event type settings
   const reschedulePreventionRedirectUrl = determineReschedulePreventionRedirect({
     booking: {
@@ -134,11 +144,13 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
         allowBookingFromCancelledBookingReschedule: !!eventType.allowReschedulingCancelledBookings,
         minimumRescheduleNotice: eventType.minimumRescheduleNotice,
         teamId: eventType.team?.id ?? null,
+        metadata: eventType.metadata ?? null,
       },
     },
     eventUrl,
     forceRescheduleForCancelledBooking: allowRescheduleForCancelledBooking,
     currentUserId: session?.user?.id ?? null,
+    isAdmin: !!isAdmin,
     bookingSeat,
   });
 

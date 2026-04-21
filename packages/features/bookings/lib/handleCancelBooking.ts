@@ -17,6 +17,7 @@ import EventManager from "@calcom/features/bookings/lib/EventManager";
 import { getCalEventResponses } from "@calcom/features/bookings/lib/getCalEventResponses";
 import { processNoShowFeeOnCancellation } from "@calcom/features/bookings/lib/payment/processNoShowFeeOnCancellation";
 import { processPaymentRefund } from "@calcom/features/bookings/lib/payment/processPaymentRefund";
+import { BookingAccessService } from "@calcom/features/bookings/services/BookingAccessService";
 import { getFeaturesRepository } from "@calcom/features/di/containers/FeaturesRepository";
 import { CreditService } from "@calcom/features/ee/billing/credit-service";
 import { getBookerBaseUrl } from "@calcom/features/ee/organizations/lib/getBookerUrlServer";
@@ -38,6 +39,7 @@ import {
 } from "@calcom/features/webhooks/lib/scheduleTrigger";
 import sendPayload from "@calcom/features/webhooks/lib/sendOrSchedulePayload";
 import type { EventTypeInfo } from "@calcom/features/webhooks/lib/sendPayload";
+import { getTranslation } from "@calcom/i18n/server";
 import getOrgIdFromMemberOrTeamId from "@calcom/lib/getOrgIdFromMemberOrTeamId";
 import { getTeamIdFromEventType } from "@calcom/lib/getTeamIdFromEventType";
 import { HttpError } from "@calcom/lib/http-error";
@@ -45,14 +47,11 @@ import { isPrismaObjOrUndefined } from "@calcom/lib/isPrismaObj";
 import { parseRecurringEvent } from "@calcom/lib/isRecurringEvent";
 import logger from "@calcom/lib/logger";
 import { safeStringify } from "@calcom/lib/safeStringify";
-import { getTranslation } from "@calcom/i18n/server";
 import { getTimeFormatStringFromUserTimeFormat } from "@calcom/lib/timeFormat";
 // TODO: Prisma import would be used from DI in a followup PR when we remove `handler` export
 import prisma from "@calcom/prisma";
 import type { WebhookTriggerEvents, WorkflowMethods } from "@calcom/prisma/enums";
 import { BookingStatus } from "@calcom/prisma/enums";
-
-import { isCancellationReasonRequired } from "./cancellationReason";
 import type { EventTypeMetadata } from "@calcom/prisma/zod-utils";
 import { bookingCancelInput, bookingMetadataSchema } from "@calcom/prisma/zod-utils";
 import type { CalendarEvent } from "@calcom/types/Calendar";
@@ -60,6 +59,7 @@ import { v4 as uuidv4 } from "uuid";
 import type { z } from "zod";
 import { BookingRepository } from "../repositories/BookingRepository";
 import { PrismaBookingAttendeeRepository } from "../repositories/PrismaBookingAttendeeRepository";
+import { isCancellationReasonRequired } from "./cancellationReason";
 import type {
   CancelBookingMeta,
   CancelRegularBookingData,
@@ -70,6 +70,7 @@ import { getBookingToDelete } from "./getBookingToDelete";
 import { handleInternalNote } from "./handleInternalNote";
 import cancelAttendeeSeat from "./handleSeats/cancel/cancelAttendeeSeat";
 import type { IBookingCancelService } from "./interfaces/IBookingCancelService";
+import { isWithinMinimumRescheduleNotice } from "./reschedule/isWithinMinimumRescheduleNotice";
 
 const log = logger.getSubLogger({ prefix: ["handleCancelBooking"] });
 
@@ -220,7 +221,12 @@ async function handler(input: CancelBookingInput, dependencies?: Dependencies) {
     isCancellationUserHost
   );
 
-  if (!platformClientId && !cancellationReason?.trim() && isReasonRequired && !skipCancellationReasonValidation) {
+  if (
+    !platformClientId &&
+    !cancellationReason?.trim() &&
+    isReasonRequired &&
+    !skipCancellationReasonValidation
+  ) {
     throw new HttpError({
       statusCode: 400,
       message: "Cancellation reason is required",
@@ -232,6 +238,26 @@ async function handler(input: CancelBookingInput, dependencies?: Dependencies) {
       statusCode: 400,
       message: "Cannot cancel a booking that has already ended",
     });
+  }
+
+  // Check cancel notice period (admins bypass)
+  const isAdmin =
+    userId && (await new BookingAccessService(prisma).isUserAdminOfBooking({ userId, bookingUid: uid }));
+  if (!isAdmin) {
+    const eventTypeMetadata = bookingToDelete.eventType?.metadata as
+      | { cancelNoticeOrganizer?: number; cancelNoticeAttendee?: number }
+      | undefined;
+    const cancelNotice = isCancellationUserHost
+      ? (eventTypeMetadata?.cancelNoticeOrganizer ?? null)
+      : (eventTypeMetadata?.cancelNoticeAttendee ?? null);
+    if (isWithinMinimumRescheduleNotice(bookingToDelete.startTime, cancelNotice)) {
+      throw new HttpError({
+        statusCode: 403,
+        message: isCancellationUserHost
+          ? "Cannot cancel a booking within the organizer notice period"
+          : "Cannot cancel a booking within the attendee notice period",
+      });
+    }
   }
 
   // If the booking is a seated event and there is no seatReferenceUid we should validate that logged in user is host

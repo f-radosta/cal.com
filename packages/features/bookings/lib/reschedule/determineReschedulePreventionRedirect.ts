@@ -1,11 +1,9 @@
 import { URLSearchParams } from "node:url";
-
 import { getFullName } from "@calcom/features/form-builder/utils";
 import { ENV_PAST_BOOKING_RESCHEDULE_CHANGE_TEAM_IDS } from "@calcom/lib/constants";
 import { getSafe } from "@calcom/lib/getSafe";
 import { BookingStatus } from "@calcom/prisma/enums";
 import type { JsonValue } from "@calcom/types/Json";
-
 import { isWithinMinimumRescheduleNotice } from "./isWithinMinimumRescheduleNotice";
 
 export type ReschedulePreventionRedirectInput = {
@@ -22,11 +20,15 @@ export type ReschedulePreventionRedirectInput = {
       allowBookingFromCancelledBookingReschedule: boolean;
       minimumRescheduleNotice: number | null;
       teamId: number | null;
+      metadata?: {
+        rescheduleNoticeOrganizer?: number | null;
+      } | null;
     };
   };
   eventUrl: string;
   forceRescheduleForCancelledBooking?: boolean;
   currentUserId?: number | null; // Currently authenticated user's ID (if any)
+  isAdmin?: boolean;
   bookingSeat?: {
     data: JsonValue;
     booking: {
@@ -57,7 +59,7 @@ function isPastBookingRescheduleBehaviourToPreventBooking(teamId: number | null 
     .map((id) => id.trim())
     .filter((id) => id !== "")
     .map((id) => parseInt(id, 10))
-    .filter((id) => !isNaN(id));
+    .filter((id) => !Number.isNaN(id));
 
   return configuredTeamIds.includes(teamId);
 }
@@ -89,16 +91,24 @@ export function determineReschedulePreventionRedirect(
     return allowedToBeBookedThroughCancelledBookingRescheduleLink ? eventUrl : `/booking/${booking.uid}`;
   }
 
-  // Check if rescheduling is prevented due to minimum reschedule notice
-  // Only apply this restriction if the user is NOT the booking organizer
-  const isUserOrganizer = input.currentUserId && booking.userId && input.currentUserId === booking.userId;
-  const { minimumRescheduleNotice } = booking.eventType;
-  if (
-    !isUserOrganizer &&
-    isWithinMinimumRescheduleNotice(booking.startTime, minimumRescheduleNotice ?? null)
-  ) {
-    // Rescheduling is not allowed within the minimum notice period (only for non-organizers)
-    return `/booking/${booking.uid}`;
+  // Check if rescheduling is prevented due to minimum reschedule notice (admins bypass)
+  if (!input.isAdmin) {
+    const isUserOrganizer = input.currentUserId && booking.userId && input.currentUserId === booking.userId;
+    const { minimumRescheduleNotice } = booking.eventType;
+    const rescheduleNoticeOrganizer = booking.eventType.metadata?.rescheduleNoticeOrganizer ?? null;
+
+    if (
+      !isUserOrganizer &&
+      isWithinMinimumRescheduleNotice(booking.startTime, minimumRescheduleNotice ?? null)
+    ) {
+      // Rescheduling is not allowed within the minimum notice period for non-organizers
+      return `/booking/${booking.uid}`;
+    }
+
+    if (isUserOrganizer && isWithinMinimumRescheduleNotice(booking.startTime, rescheduleNoticeOrganizer)) {
+      // Rescheduling is not allowed within the organizer notice period
+      return `/booking/${booking.uid}`;
+    }
   }
 
   const isBookingInPast = booking.endTime && new Date(booking.endTime) < new Date();

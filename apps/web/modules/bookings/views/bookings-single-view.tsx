@@ -1,14 +1,5 @@
 "use client";
 
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@radix-ui/react-collapsible";
-import classNames from "classnames";
-import { useSession } from "next-auth/react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { Fragment, useEffect, useState } from "react";
-import { Toaster } from "sonner";
-import { z } from "zod";
-
 import BookingPageTagManager from "@calcom/app-store/BookingPageTagManager";
 import type { getEventLocationValue } from "@calcom/app-store/locations";
 import { getSuccessPageLocationMessage, guessEventLocationType } from "@calcom/app-store/locations";
@@ -22,7 +13,7 @@ import {
   useIsEmbed,
 } from "@calcom/embed-core/embed-iframe";
 import { Price } from "@calcom/features/bookings/components/event-meta/Price";
-import { getCalendarLinks, CalendarLinkType } from "@calcom/features/bookings/lib/getCalendarLinks";
+import { CalendarLinkType, getCalendarLinks } from "@calcom/features/bookings/lib/getCalendarLinks";
 import { RATING_OPTIONS, validateRating } from "@calcom/features/bookings/lib/rating";
 import { isWithinMinimumRescheduleNotice as isWithinMinimumRescheduleNoticeUtil } from "@calcom/features/bookings/lib/reschedule/isWithinMinimumRescheduleNotice";
 import type { nameObjectSchema } from "@calcom/features/eventtypes/lib/eventNaming";
@@ -39,12 +30,10 @@ import isSmsCalEmail from "@calcom/lib/isSmsCalEmail";
 import { markdownToSafeHTML } from "@calcom/lib/markdownToSafeHTML";
 import { getEveryFreqFor } from "@calcom/lib/recurringStrings";
 import { getIs24hClockFromLocalStorage, isBrowserLocale24h } from "@calcom/lib/timeFormat";
-import { getTimeShiftFlags, getFirstShiftFlags } from "@calcom/lib/timeShift";
+import { getFirstShiftFlags, getTimeShiftFlags } from "@calcom/lib/timeShift";
 import { CURRENT_TIMEZONE } from "@calcom/lib/timezoneConstants";
 import { localStorage } from "@calcom/lib/webstorage";
-import { AssignmentReasonEnum, BookingStatus, SchedulingType } from "@calcom/prisma/enums";
-
-import assignmentReasonBadgeTitleMap from "@calcom/web/lib/booking/assignmentReasonBadgeTitleMap";
+import { type AssignmentReasonEnum, BookingStatus, SchedulingType } from "@calcom/prisma/enums";
 import { bookingMetadataSchema } from "@calcom/prisma/zod-utils";
 import { trpc } from "@calcom/trpc/react";
 import { Alert } from "@calcom/ui/components/alert";
@@ -54,20 +43,22 @@ import { Button } from "@calcom/ui/components/button";
 import { EmptyScreen } from "@calcom/ui/components/empty-screen";
 import { EmailInput, TextArea } from "@calcom/ui/components/form";
 import { Icon } from "@calcom/ui/components/icon";
-import {
-  CalendarIcon,
-  CheckIcon,
-  ChevronLeftIcon,
-  ExternalLinkIcon,
-  XIcon,
-} from "@coss/ui/icons";
 import { showToast } from "@calcom/ui/components/toast";
 import { useCalcomTheme } from "@calcom/ui/styles";
 import CancelBooking from "@calcom/web/components/booking/CancelBooking";
 import { RoutingTraceSheet } from "@calcom/web/components/booking/RoutingTraceSheet";
 import EventReservationSchema from "@calcom/web/components/schemas/EventReservationSchema";
+import assignmentReasonBadgeTitleMap from "@calcom/web/lib/booking/assignmentReasonBadgeTitleMap";
 import { timeZone } from "@calcom/web/lib/clock";
-
+import { CalendarIcon, CheckIcon, ChevronLeftIcon, ExternalLinkIcon, XIcon } from "@coss/ui/icons";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@radix-ui/react-collapsible";
+import classNames from "classnames";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { Fragment, useEffect, useState } from "react";
+import { Toaster } from "sonner";
+import { z } from "zod";
 import { usePaymentStatus } from "../hooks/usePaymentStatus";
 import type { PageProps } from "./bookings-single-view.getServerSideProps";
 
@@ -237,9 +228,9 @@ export default function Success(props: PageProps) {
       hostNoShowMutation.mutate({ bookingUid: bookingInfo.uid, noShowHost: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [bookingInfo.uid, hostNoShowMutation.mutate, noShow]);
 
-  const sendFeedback = async (rating: string, comment: string) => {
+  const sendFeedback = async (_rating: string, comment: string) => {
     mutation.mutate({ bookingUid: bookingInfo.uid, rating: rateValue, comment: comment });
   };
 
@@ -301,12 +292,12 @@ export default function Success(props: PageProps) {
     setDate(date.tz(localStorage.getItem("timeOption.preferredTimeZone") || CURRENT_TIMEZONE));
     setIs24h(props?.userTimeFormat ? props.userTimeFormat === 24 : !!getIs24hClockFromLocalStorage());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventType, needsConfirmation]);
+  }, [date.tz, props.userTimeFormat]);
 
   useEffect(() => {
     setCalculatedDuration(dayjs(bookingInfo.endTime).diff(dayjs(bookingInfo.startTime), "minutes"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [bookingInfo.endTime, bookingInfo.startTime]);
 
   function getTitle(): string {
     const titleSuffix = props.recurringBookings ? "_recurring" : "";
@@ -400,18 +391,30 @@ export default function Success(props: PageProps) {
 
   const canCancelOrReschedule = !eventType?.disableCancelling || !eventType?.disableRescheduling;
 
-  const canCancel = !eventType?.disableCancelling;
   const canReschedule = !eventType?.disableRescheduling;
 
   // Check if reschedule should be disabled due to minimum reschedule notice
   // Use server-side computed isHost prop instead of client-side computation
   const isWithinMinimumRescheduleNotice = isHost
-    ? false // Organizers can always reschedule
+    ? isWithinMinimumRescheduleNoticeUtil(
+        bookingInfo?.startTime ?? null,
+        (eventType?.metadata as { rescheduleNoticeOrganizer?: number } | undefined)
+          ?.rescheduleNoticeOrganizer ?? null
+      )
     : isWithinMinimumRescheduleNoticeUtil(
         bookingInfo?.startTime ?? null,
         eventType?.minimumRescheduleNotice ?? null
       );
   const isRescheduleDisabled = !canReschedule || isWithinMinimumRescheduleNotice;
+
+  const cancelNotice = isHost
+    ? ((eventType?.metadata as { cancelNoticeOrganizer?: number } | undefined)?.cancelNoticeOrganizer ?? null)
+    : ((eventType?.metadata as { cancelNoticeAttendee?: number } | undefined)?.cancelNoticeAttendee ?? null);
+  const isWithinCancelNotice = isWithinMinimumRescheduleNoticeUtil(
+    bookingInfo?.startTime ?? null,
+    cancelNotice
+  );
+  const canCancel = !eventType?.disableCancelling && !isWithinCancelNotice;
   const paymentStatusMessage = usePaymentStatus({
     bookingStatus: bookingInfo.status,
     startTime: bookingInfo.startTime,
@@ -478,11 +481,11 @@ export default function Success(props: PageProps) {
         />
       )}
       {isLoggedIn && !isEmbed && !isFeedbackMode && (
-        <div className="-mb-4 ml-4 mt-2">
+        <div className="mt-2 -mb-4 ml-4">
           <Link
             href={allRemainingBookings ? "/bookings/recurring" : "/bookings/upcoming"}
             data-testid="back-to-bookings"
-            className="hover:bg-subtle text-subtle hover:text-default mt-2 inline-flex px-1 py-2 text-sm transition dark:hover:bg-transparent">
+            className="mt-2 inline-flex px-1 py-2 text-sm text-subtle transition hover:bg-subtle hover:text-default dark:hover:bg-transparent">
             <ChevronLeftIcon className="h-5 w-5 rtl:rotate-180" /> {t("back_to_bookings")}
           </Link>
         </div>
@@ -491,24 +494,24 @@ export default function Success(props: PageProps) {
         eventType={{ ...eventType, metadata: eventTypeMetaDataSchemaWithTypedApps.parse(eventType.metadata) }}
       />
       <main className={classNames(shouldAlignCentrally ? "mx-auto" : "", isEmbed ? "" : "max-w-3xl")}>
-        <div className={classNames("overflow-y-auto", isEmbed ? "" : "z-50 ")}>
+        <div className={classNames("overflow-y-auto", isEmbed ? "" : "z-50")}>
           <div
             className={classNames(
               shouldAlignCentrally ? "text-center" : "",
-              "flex items-end justify-center px-4 pb-20 pt-4 sm:flex sm:p-0"
+              "flex items-end justify-center px-4 pt-4 pb-20 sm:flex sm:p-0"
             )}>
             <div
               className={classNames(
-                "main my-4 flex flex-col transition-opacity sm:my-0 ",
-                isEmbed ? "" : " inset-0"
+                "main my-4 flex flex-col transition-opacity sm:my-0",
+                isEmbed ? "" : "inset-0"
               )}
               aria-hidden="true">
               <div
                 className={classNames(
                   "inline-block transform overflow-hidden rounded-lg border sm:my-8 sm:max-w-xl",
                   !isBackgroundTransparent &&
-                    " bg-default dark:bg-cal-muted border-booker border-booker-width",
-                  "px-8 pb-4 pt-5 text-left align-bottom transition-all sm:w-full sm:py-8 sm:align-middle"
+                    "border-booker border-booker-width bg-default dark:bg-cal-muted",
+                  "px-8 pt-5 pb-4 text-left align-bottom transition-all sm:w-full sm:py-8 sm:align-middle"
                 )}
                 role="dialog"
                 aria-modal="true"
@@ -516,7 +519,7 @@ export default function Success(props: PageProps) {
                 {!isFeedbackMode && (
                   <>
                     <div
-                      className={classNames(isRoundRobin && "min-h-24 min-w-32 relative mx-auto h-24 w-32")}>
+                      className={classNames(isRoundRobin && "relative mx-auto h-24 min-h-24 w-32 min-w-32")}>
                       {isRoundRobin && bookingInfo.user && (
                         <Avatar
                           className="mx-auto flex items-center justify-center"
@@ -533,7 +536,7 @@ export default function Success(props: PageProps) {
                         className={classNames(
                           "mx-auto flex h-12 w-12 items-center justify-center rounded-full",
                           isRoundRobin &&
-                            "border-cal-bg dark:border-cal-bg-muted absolute bottom-0 right-0 z-10 h-12 w-12 border-8",
+                            "absolute right-0 bottom-0 z-10 h-12 w-12 border-8 border-cal-bg dark:border-cal-bg-muted",
                           !giphyImage && isReschedulable && !needsConfirmation && !isAwaitingPayment
                             ? "bg-cal-success"
                             : "",
@@ -546,14 +549,14 @@ export default function Success(props: PageProps) {
                           <CheckIcon className="h-5 w-5 text-green-600 dark:text-green-400" />
                         )}
                         {(needsConfirmation || isAwaitingPayment) && isReschedulable && (
-                          <CalendarIcon className="text-emphasis h-5 w-5" />
+                          <CalendarIcon className="h-5 w-5 text-emphasis" />
                         )}
                         {isCancelled && <XIcon className="h-5 w-5 text-red-600 dark:text-red-200" />}
                       </div>
                     </div>
-                    <div className="mb-8 mt-6 text-center last:mb-0">
+                    <div className="mt-6 mb-8 text-center last:mb-0">
                       <h3
-                        className="text-emphasis text-2xl font-semibold leading-6"
+                        className="font-semibold text-2xl text-emphasis leading-6"
                         data-testid={isCancelled ? "cancelled-headline" : ""}
                         id="modal-headline">
                         {successPageHeadline}
@@ -566,7 +569,7 @@ export default function Success(props: PageProps) {
                         (bookingInfo.status === BookingStatus.CANCELLED ||
                           bookingInfo.status === BookingStatus.REJECTED) && <h4>{paymentStatusMessage}</h4>}
 
-                      <div className="border-subtle text-default mt-8 grid grid-cols-3 gap-x-4 border-t pt-8 text-left rtl:text-right sm:gap-x-0">
+                      <div className="mt-8 grid grid-cols-3 gap-x-4 border-subtle border-t pt-8 text-left text-default sm:gap-x-0 rtl:text-right">
                         {(isCancelled || reschedule) && cancellationReason && (
                           <>
                             <div className="font-medium">
@@ -716,7 +719,7 @@ export default function Success(props: PageProps) {
                                 ? t("complete_your_booking")
                                 : t("payment")}
                             </div>
-                            <div className="col-span-2 mb-2 mt-3">
+                            <div className="col-span-2 mt-3 mb-2">
                               <Price
                                 currency={props.paymentStatus.currency}
                                 price={props.paymentStatus.amount}
@@ -730,7 +733,7 @@ export default function Success(props: PageProps) {
                         {bookingInfo?.description && (
                           <>
                             <div className="mt-9 font-medium">{t("additional_notes")}</div>
-                            <div className="col-span-2 mb-2 mt-9">
+                            <div className="col-span-2 mt-9 mb-2">
                               <p className="wrap-break-word whitespace-pre-line">{bookingInfo.description}</p>
                             </div>
                           </>
@@ -738,7 +741,7 @@ export default function Success(props: PageProps) {
                         {!!utmParams && canViewHiddenData && (
                           <>
                             <div className="mt-9 pr-2 font-medium sm:pr-0">{t("utm_params")}</div>
-                            <div className="col-span-2 mb-2 ml-3 mt-9 sm:ml-0">
+                            <div className="col-span-2 mt-9 mb-2 ml-3 sm:ml-0">
                               <button
                                 data-testid="utm-dropdown"
                                 onClick={() => {
@@ -755,14 +758,14 @@ export default function Success(props: PageProps) {
                               </button>
 
                               {showUtmParams && (
-                                <div className="col-span-2 mb-2 mt-2">
+                                <div className="col-span-2 mt-2 mb-2">
                                   {Object.entries(utmParams).filter(([_, value]) => Boolean(value)).length >
                                   0 ? (
                                     <ul className="stack-y-1 list-disc p-1 pl-5 sm:w-80">
                                       {Object.entries(utmParams)
                                         .filter(([_, value]) => Boolean(value))
                                         .map(([key, value]) => (
-                                          <li key={key} className="text-muted space-x-1 text-sm">
+                                          <li key={key} className="space-x-1 text-muted text-sm">
                                             <span>{key}</span>: <span>{value}</span>
                                           </li>
                                         ))}
@@ -781,7 +784,7 @@ export default function Success(props: PageProps) {
                           bookingInfo.assignmentReason[0].reasonEnum && (
                             <>
                               <div className="mt-9 font-medium">{t("assignment_reason")}</div>
-                              <div className="col-span-2 mb-2 mt-9">
+                              <div className="col-span-2 mt-9 mb-2">
                                 <Badge
                                   variant="gray"
                                   className="mb-2 cursor-pointer hover:opacity-80"
@@ -793,7 +796,7 @@ export default function Success(props: PageProps) {
                                   )}
                                 </Badge>
                                 {bookingInfo.assignmentReason[0].reasonString && (
-                                  <p className="text-muted wrap-break-word text-sm">
+                                  <p className="wrap-break-word text-muted text-sm">
                                     {bookingInfo.assignmentReason[0].reasonString}
                                   </p>
                                 )}
@@ -806,7 +809,7 @@ export default function Success(props: PageProps) {
                             </>
                           )}
                       </div>
-                      <div className="text-bookingdark dark:border-darkgray-200 mt-8 text-left dark:text-gray-300">
+                      <div className="mt-8 text-left text-bookingdark dark:border-darkgray-200 dark:text-gray-300">
                         {eventType.bookingFields.map((field) => {
                           if (!field) return null;
 
@@ -828,13 +831,13 @@ export default function Success(props: PageProps) {
                             <Fragment key={field.name}>
                               {/* biome-ignore lint/security/noDangerouslySetInnerHtml: Content is sanitized via markdownToSafeHTML */}
                               <div
-                                className="text-emphasis mt-4 font-medium"
+                                className="mt-4 font-medium text-emphasis"
                                 dangerouslySetInnerHTML={{
                                   __html: markdownToSafeHTML(label),
                                 }}
                               />
                               <p
-                                className="text-default wrap-break-word"
+                                className="wrap-break-word text-default"
                                 data-testid="field-response"
                                 data-fob-field={field.name}>
                                 {field.type === "boolean"
@@ -850,13 +853,13 @@ export default function Success(props: PageProps) {
                     </div>
                     {requiresLoginToUpdate && (
                       <>
-                        <hr className="border-subtle mb-8" />
+                        <hr className="mb-8 border-subtle" />
                         <div className="text-center">
                           <span className="text-emphasis ltr:mr-2 rtl:ml-2">
                             {t("need_to_make_a_change")}
                           </span>
                           {/* Login button but redirect to here */}
-                          <span className="text-default inline">
+                          <span className="inline text-default">
                             <Link
                               href={`/auth/login?callbackUrl=${encodeURIComponent(
                                 `/booking/${bookingInfo?.uid}`
@@ -882,46 +885,44 @@ export default function Success(props: PageProps) {
                             canReschedule) ||
                             (!isBookingInPast && canCancel)) && (
                             <>
-                              <hr className="border-subtle mb-8" />
+                              <hr className="mb-8 border-subtle" />
                               <div className="text-center last:pb-0">
                                 <span className="text-emphasis ltr:mr-2 rtl:ml-2">
                                   {t("need_to_make_a_change")}
                                 </span>
 
-                                <>
-                                  {!props.recurringBookings &&
-                                    (!isBookingInPast || eventType.allowReschedulingPastBookings) &&
-                                    canReschedule &&
-                                    !isRescheduleDisabled && (
-                                      <span className="text-default inline">
-                                        <Link
-                                          href={`/reschedule/${seatReferenceUid || bookingInfo?.uid}${
-                                            currentUserEmail
-                                              ? `?rescheduledBy=${encodeURIComponent(currentUserEmail)}`
-                                              : ""
-                                          }`}
-                                          className="underline"
-                                          data-testid="reschedule-link">
-                                          {t("reschedule")}
-                                        </Link>
-                                        {!isBookingInPast && canCancel && (
-                                          <span className="mx-2">{t("or_lowercase")}</span>
-                                        )}
-                                      </span>
-                                    )}
-
-                                  {!isBookingInPast && canCancel && (
-                                    <button
-                                      data-testid="cancel"
-                                      className={classNames(
-                                        "text-default underline",
-                                        props.recurringBookings && "ltr:mr-2 rtl:ml-2"
+                                {!props.recurringBookings &&
+                                  (!isBookingInPast || eventType.allowReschedulingPastBookings) &&
+                                  canReschedule &&
+                                  !isRescheduleDisabled && (
+                                    <span className="inline text-default">
+                                      <Link
+                                        href={`/reschedule/${seatReferenceUid || bookingInfo?.uid}${
+                                          currentUserEmail
+                                            ? `?rescheduledBy=${encodeURIComponent(currentUserEmail)}`
+                                            : ""
+                                        }`}
+                                        className="underline"
+                                        data-testid="reschedule-link">
+                                        {t("reschedule")}
+                                      </Link>
+                                      {!isBookingInPast && canCancel && (
+                                        <span className="mx-2">{t("or_lowercase")}</span>
                                       )}
-                                      onClick={() => setIsCancellationMode(true)}>
-                                      {t("cancel")}
-                                    </button>
+                                    </span>
                                   )}
-                                </>
+
+                                {!isBookingInPast && canCancel && (
+                                  <button
+                                    data-testid="cancel"
+                                    className={classNames(
+                                      "text-default underline",
+                                      props.recurringBookings && "ltr:mr-2 rtl:ml-2"
+                                    )}
+                                    onClick={() => setIsCancellationMode(true)}>
+                                    {t("cancel")}
+                                  </button>
+                                )}
                               </div>
                             </>
                           )}
@@ -969,16 +970,16 @@ export default function Success(props: PageProps) {
                     )}
                     {!needsConfirmation && !isCancellationMode && isReschedulable && !!calculatedDuration && (
                       <>
-                        <hr className="border-subtle mt-8" />
-                        <div className="text-default align-center flex flex-row justify-center pt-8">
-                          <span className="text-default flex self-center font-medium ltr:mr-2 rtl:ml-2 ">
+                        <hr className="mt-8 border-subtle" />
+                        <div className="flex flex-row justify-center pt-8 align-center text-default">
+                          <span className="flex self-center font-medium text-default ltr:mr-2 rtl:ml-2">
                             {t("add_to_calendar")}
                           </span>
                           <div className="justify-left mt-1 flex text-left sm:mt-0">
                             {googleCalendarLink && (
                               <Link
                                 href={googleCalendarLink}
-                                className="text-default border-subtle h-10 w-10 rounded-sm border px-3 py-2 ltr:mr-2 rtl:ml-2"
+                                className="h-10 w-10 rounded-sm border border-subtle px-3 py-2 text-default ltr:mr-2 rtl:ml-2"
                                 target="_blank">
                                 <svg
                                   className="-mt-1.5 inline-block h-4 w-4"
@@ -993,7 +994,7 @@ export default function Success(props: PageProps) {
                             {microsoftOutlookLink && (
                               <Link
                                 href={microsoftOutlookLink}
-                                className="border-subtle text-default mx-2 h-10 w-10 rounded-sm border px-3 py-2"
+                                className="mx-2 h-10 w-10 rounded-sm border border-subtle px-3 py-2 text-default"
                                 target="_blank">
                                 <svg
                                   className="-mt-1.5 mr-1 inline-block h-4 w-4"
@@ -1008,7 +1009,7 @@ export default function Success(props: PageProps) {
                             {microsoftOfficeLink && (
                               <Link
                                 href={microsoftOfficeLink}
-                                className="text-default border-subtle mx-2 h-10 w-10 rounded-sm border px-3 py-2"
+                                className="mx-2 h-10 w-10 rounded-sm border border-subtle px-3 py-2 text-default"
                                 target="_blank">
                                 <svg
                                   className="-mt-1.5 mr-1 inline-block h-4 w-4"
@@ -1023,7 +1024,7 @@ export default function Success(props: PageProps) {
                             {icsLink && (
                               <Link
                                 href={icsLink}
-                                className="border-subtle text-default mx-2 h-10 w-10 rounded-sm border px-3 py-2"
+                                className="mx-2 h-10 w-10 rounded-sm border border-subtle px-3 py-2 text-default"
                                 download={`${eventType.title}.ics`}>
                                 <svg
                                   version="1.1"
@@ -1043,8 +1044,8 @@ export default function Success(props: PageProps) {
 
                     {session === null && !(userIsOwner || props.hideBranding) && (
                       <>
-                        <hr className="border-subtle mt-8" />
-                        <div className="text-default pt-8 text-center text-xs">
+                        <hr className="mt-8 border-subtle" />
+                        <div className="pt-8 text-center text-default text-xs">
                           <a href="https://cal.com/signup">
                             {t("create_booking_link_with_calcom", { appName: APP_NAME })}
                           </a>
@@ -1062,7 +1063,7 @@ export default function Success(props: PageProps) {
                               name="email"
                               id="email"
                               defaultValue={email}
-                              className="mr- focus:border-brand-default border-default text-default mt-0 block w-full rounded-none rounded-l-md shadow-sm focus:ring-black sm:text-sm"
+                              className="mr- mt-0 block w-full rounded-none rounded-l-md border-default text-default shadow-sm focus:border-brand-default focus:ring-black sm:text-sm"
                               placeholder="rick.astley@cal.com"
                             />
                             <Button
@@ -1079,22 +1080,20 @@ export default function Success(props: PageProps) {
                 )}
                 {isFeedbackMode &&
                   (noShow ? (
-                    <>
-                      <EmptyScreen
-                        Icon="user-x"
-                        iconClassName="text-error"
-                        iconWrapperClassName="bg-error"
-                        headline={t("host_no_show")}
-                        description={t("no_show_description")}
-                        buttonRaw={
-                          !props.recurringBookings ? (
-                            <Button href={`/reschedule/${seatReferenceUid || bookingInfo?.uid}`}>
-                              {t("reschedule")}
-                            </Button>
-                          ) : undefined
-                        }
-                      />
-                    </>
+                    <EmptyScreen
+                      Icon="user-x"
+                      iconClassName="text-error"
+                      iconWrapperClassName="bg-error"
+                      headline={t("host_no_show")}
+                      description={t("no_show_description")}
+                      buttonRaw={
+                        !props.recurringBookings ? (
+                          <Button href={`/reschedule/${seatReferenceUid || bookingInfo?.uid}`}>
+                            {t("reschedule")}
+                          </Button>
+                        ) : undefined
+                      }
+                    />
                   ) : (
                     <>
                       <div className="my-3 flex justify-center space-x-1">
@@ -1142,7 +1141,7 @@ export default function Success(props: PageProps) {
               </div>
               {isGmail && !isFeedbackMode && (
                 <Alert
-                  className="main -mb-20 mt-4 inline-block ltr:text-left rtl:text-right sm:-mt-4 sm:mb-4 sm:w-full sm:max-w-xl sm:align-middle"
+                  className="main mt-4 -mb-20 inline-block sm:-mt-4 sm:mb-4 sm:w-full sm:max-w-xl sm:align-middle ltr:text-left rtl:text-right"
                   severity="warning"
                   message={
                     <div>
@@ -1175,7 +1174,7 @@ const RescheduledToLink = ({ rescheduledToUid }: { rescheduledToUid: string }) =
   return (
     <>
       <div className="mt-3 font-medium">{t("rescheduled")}</div>
-      <div className="col-span-2 mb-2 mt-3">
+      <div className="col-span-2 mt-3 mb-2">
         <span className="underline">
           <Link href={`/booking/${rescheduledToUid}`}>
             <div className="flex items-center gap-1">
@@ -1203,10 +1202,10 @@ const DisplayLocation = ({
       href={locationToDisplay}
       target="_blank"
       title={locationToDisplay}
-      className={classNames("text-default flex items-center gap-2", className)}
+      className={classNames("flex items-center gap-2 text-default", className)}
       rel="noreferrer">
       {providerName || "Link"}
-      <ExternalLinkIcon className="text-default inline h-4 w-4" />
+      <ExternalLinkIcon className="inline h-4 w-4 text-default" />
     </a>
   ) : (
     <p className={className}>{locationToDisplay}</p>

@@ -1,9 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-
 import * as constants from "@calcom/lib/constants";
 import { BookingStatus } from "@calcom/prisma/client";
 import type { JsonValue } from "@calcom/types/Json";
-
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   determineReschedulePreventionRedirect,
   type ReschedulePreventionRedirectInput,
@@ -67,11 +65,13 @@ const createReschedulePreventionRedirectInput = (overrides?: {
   eventUrl?: string;
   forceRescheduleForCancelledBooking?: boolean;
   currentUserId?: number | null;
+  isAdmin?: boolean;
 }): ReschedulePreventionRedirectInput => ({
   booking: overrides?.booking || createTestBooking(),
   eventUrl: overrides?.eventUrl || "https://example.com/event",
   forceRescheduleForCancelledBooking: overrides?.forceRescheduleForCancelledBooking || false,
   currentUserId: overrides?.currentUserId !== undefined ? overrides.currentUserId : null,
+  isAdmin: overrides?.isAdmin,
 });
 
 const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -653,6 +653,107 @@ describe("determineReschedulePreventionRedirect", () => {
 
       // Unauthenticated user should be prevented from rescheduling within minimum notice period
       expectRedirectToBookingDetailsPage(result, input.booking.uid);
+    });
+
+    it("should prevent organizer from rescheduling within the organizer notice period", () => {
+      const organizerUserId = 1;
+      const bookingStartTime = new Date(Date.now() + 12 * 60 * 60 * 1000); // 12 hours from now
+      const bookingEndTime = new Date(bookingStartTime.getTime() + 30 * 60 * 1000); // 30 minutes later
+
+      const input = createReschedulePreventionRedirectInput({
+        booking: createTestBooking({
+          status: BookingStatus.ACCEPTED,
+          userId: organizerUserId,
+          startTime: bookingStartTime,
+          endTime: bookingEndTime,
+          eventType: {
+            minimumRescheduleNotice: null,
+            metadata: {
+              rescheduleNoticeOrganizer: 1440, // 24 hours
+            },
+          },
+        }),
+        currentUserId: organizerUserId,
+      });
+      const result = determineReschedulePreventionRedirect(input);
+
+      expectRedirectToBookingDetailsPage(result, input.booking.uid);
+    });
+
+    it("should allow organizer to reschedule when outside the organizer notice period", () => {
+      const organizerUserId = 1;
+      const bookingStartTime = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 hours from now
+      const bookingEndTime = new Date(bookingStartTime.getTime() + 30 * 60 * 1000); // 30 minutes later
+
+      const input = createReschedulePreventionRedirectInput({
+        booking: createTestBooking({
+          status: BookingStatus.ACCEPTED,
+          userId: organizerUserId,
+          startTime: bookingStartTime,
+          endTime: bookingEndTime,
+          eventType: {
+            minimumRescheduleNotice: null,
+            metadata: {
+              rescheduleNoticeOrganizer: 1440, // 24 hours
+            },
+          },
+        }),
+        currentUserId: organizerUserId,
+      });
+      const result = determineReschedulePreventionRedirect(input);
+
+      expectToNotPreventReschedule(result);
+    });
+
+    it("should allow admin to bypass organizer notice period", () => {
+      const organizerUserId = 1;
+      const adminUserId = 99;
+      const bookingStartTime = new Date(Date.now() + 12 * 60 * 60 * 1000); // 12 hours from now
+      const bookingEndTime = new Date(bookingStartTime.getTime() + 30 * 60 * 1000); // 30 minutes later
+
+      const input = createReschedulePreventionRedirectInput({
+        booking: createTestBooking({
+          status: BookingStatus.ACCEPTED,
+          userId: organizerUserId,
+          startTime: bookingStartTime,
+          endTime: bookingEndTime,
+          eventType: {
+            minimumRescheduleNotice: null,
+            metadata: {
+              rescheduleNoticeOrganizer: 1440, // 24 hours
+            },
+          },
+        }),
+        currentUserId: adminUserId,
+        isAdmin: true,
+      });
+      const result = determineReschedulePreventionRedirect(input);
+
+      expectToNotPreventReschedule(result);
+    });
+
+    it("should allow admin to bypass attendee notice period", () => {
+      const organizerUserId = 1;
+      const adminUserId = 99;
+      const bookingStartTime = new Date(Date.now() + 12 * 60 * 60 * 1000); // 12 hours from now
+      const bookingEndTime = new Date(bookingStartTime.getTime() + 30 * 60 * 1000); // 30 minutes later
+
+      const input = createReschedulePreventionRedirectInput({
+        booking: createTestBooking({
+          status: BookingStatus.ACCEPTED,
+          userId: organizerUserId,
+          startTime: bookingStartTime,
+          endTime: bookingEndTime,
+          eventType: {
+            minimumRescheduleNotice: 1440, // 24 hours
+          },
+        }),
+        currentUserId: adminUserId,
+        isAdmin: true,
+      });
+      const result = determineReschedulePreventionRedirect(input);
+
+      expectToNotPreventReschedule(result);
     });
   });
 });
