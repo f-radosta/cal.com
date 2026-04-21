@@ -1,21 +1,19 @@
-import { useSession } from "next-auth/react";
-import { useMemo } from "react";
-
 import { useIsEmbed } from "@calcom/embed-core/embed-iframe";
 import {
-  useOrgBranding,
   type OrganizationBranding,
+  useOrgBranding,
 } from "@calcom/features/ee/organizations/context/provider";
-import { useMobileMoreItems } from "./useMobileMoreItems";
 import { useIsStandalone } from "@calcom/lib/hooks/useIsStandalone";
 import classNames from "@calcom/ui/classNames";
 import { useHasPaidPlan } from "@calcom/web/modules/billing/hooks/useHasPaidPlan";
-
+import { useSession } from "next-auth/react";
+import { useMemo } from "react";
 import UnconfirmedBookingBadge from "../../bookings/components/UnconfirmedBookingBadge";
 import { KBarTrigger } from "../Kbar";
 import { TeamInviteBadge } from "../TeamInviteBadge";
 import type { NavigationItemType } from "./NavigationItem";
-import { NavigationItem, MobileNavigationItem, MobileNavigationMoreItem } from "./NavigationItem";
+import { MobileNavigationItem, MobileNavigationMoreItem, NavigationItem } from "./NavigationItem";
+import { useMobileMoreItems } from "./useMobileMoreItems";
 
 export const MORE_SEPARATOR_NAME = "more";
 
@@ -34,6 +32,18 @@ const getNavigationItems = (
     icon: "calendar",
     badge: <UnconfirmedBookingBadge />,
     isCurrent: ({ pathname }) => pathname?.startsWith("/bookings") ?? false,
+    child: [
+      {
+        name: "my_bookings",
+        href: "/bookings/upcoming",
+        isCurrent: ({ pathname }) => pathname?.startsWith("/bookings/upcoming") ?? false,
+      },
+      {
+        name: "admin_bookings",
+        href: "/bookings/admin",
+        isCurrent: ({ pathname }) => pathname?.startsWith("/bookings/admin") ?? false,
+      },
+    ],
   },
   {
     name: "availability",
@@ -235,7 +245,7 @@ export const Navigation = ({ isPlatformNavigation = false }: { isPlatformNavigat
       {desktopNavigationItems.map((item) => (
         <NavigationItem key={item.name} item={item} />
       ))}
-      <div className="text-subtle mt-0.5 lg:hidden">
+      <div className="mt-0.5 text-subtle lg:hidden">
         <KBarTrigger />
       </div>
     </nav>
@@ -261,7 +271,7 @@ const MobileNavigation = ({ isPlatformNavigation = false }: { isPlatformNavigati
     <>
       <nav
         className={classNames(
-          "pwa:pb-[max(0.25rem,env(safe-area-inset-bottom))] pwa:-mx-2 bg-cal-muted/40 border-subtle fixed bottom-0 left-0 z-30 flex w-full border-t px-1 shadow backdrop-blur-md md:hidden",
+          "fixed bottom-0 left-0 z-30 pwa:-mx-2 flex w-full border-subtle border-t bg-cal-muted/40 px-1 pwa:pb-[max(0.25rem,env(safe-area-inset-bottom))] shadow backdrop-blur-md md:hidden",
           isEmbed && "hidden"
         )}>
         {mobileNavigationBottomItems.map((item) => (
@@ -281,7 +291,7 @@ export const MobileNavigationMoreItems = () => {
   const allItems = [...mobileNavigationMoreItems, ...bottomItems];
 
   return (
-    <ul className="border-subtle mt-2 rounded-md border">
+    <ul className="mt-2 rounded-md border border-subtle">
       {allItems.map((item) => (
         <MobileNavigationMoreItem key={item.name} item={item} />
       ))}
