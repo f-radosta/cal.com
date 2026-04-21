@@ -25,7 +25,7 @@ export default function MinimumCancelNoticeController({
   const formMethods = useFormContext<FormValues>();
 
   const { shouldLockDisableProps } = useLockedFieldsManager({ eventType, translate: t, formMethods });
-  const lockedProps = shouldLockDisableProps("disableCancelling");
+  const lockedProps = shouldLockDisableProps("minimumCancelNotice");
 
   const currentCancelNoticeOrganizer = formMethods.watch("metadata.cancelNoticeOrganizer");
   const [cancelNoticeOrganizerValue, setCancelNoticeOrganizerValue] = useState<number>(
@@ -41,7 +41,10 @@ export default function MinimumCancelNoticeController({
     <div className={classNames("block items-start sm:flex", customClassNames?.container)}>
       <div className="w-full">
         <div className="rounded-lg border border-subtle px-4 py-6 sm:px-6">
-          <p className="font-semibold text-default text-sm">{t("minimum_cancel_notice")}</p>
+          <p className="font-semibold text-default text-sm">
+            {t("minimum_cancel_notice")}
+            {lockedProps.LockedIcon}
+          </p>
           <p className="mb-4 text-default text-sm">{t("minimum_cancel_notice_description")}</p>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2">

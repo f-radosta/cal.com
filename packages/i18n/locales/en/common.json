@@ -1510,6 +1510,7 @@
   "organizer_cancel_notice": "Organizer",
   "attendee_cancel_notice": "Attendee",
   "when_less_than_minutes_before_meeting": "When less than <0></0> minutes before meeting",
+  "when_less_than_minutes_before_meeting_guest_notice": "When less than <0></0> minutes before meeting (Guest notice)",
   "reschedule_disabled_minimum_notice": "Rescheduling is disabled within the minimum notice period before the event",
   "rescheduling_is_disabled": "Rescheduling is disabled for this event",
   "allow_rescheduling_cancelled_bookings": "Allow booking through reschedule link",

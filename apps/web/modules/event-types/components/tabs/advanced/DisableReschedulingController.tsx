@@ -175,10 +175,10 @@ export default function DisableReschedulingController({
                         )}
                         label=<ServerTrans
                           t={t}
-                          i18nKey="when_less_than_minutes_before_meeting"
+                          i18nKey="when_less_than_minutes_before_meeting_guest_notice"
                           components={[
                             <div
-                              key="when_less_than_minutes_before_meeting"
+                              key="when_less_than_minutes_before_meeting_guest_notice"
                               className="mx-2 inline-flex items-center">
                               <Input
                                 type="number"
@@ -213,27 +213,29 @@ export default function DisableReschedulingController({
                     </div>
                   </RadioGroup.Root>
                   {!disableRescheduling && (
-                    <div className="mt-4 flex items-center gap-2">
-                      <span className="text-sm">{t("organizer_reschedule_notice")}</span>
-                      <Input
-                        type="number"
-                        min={0}
-                        disabled={minimumRescheduleNoticeLocked.disabled}
-                        onChange={(evt) => {
-                          const val = Number(evt.target?.value);
-                          setRescheduleNoticeOrganizerValue(val);
-                          formMethods.setValue("metadata.rescheduleNoticeOrganizer", val, {
-                            shouldDirty: true,
-                          });
-                        }}
-                        className="m-0! block w-20 border-default text-sm [appearance:textfield] focus:z-10"
-                        defaultValue={
-                          currentRescheduleNoticeOrganizer && currentRescheduleNoticeOrganizer > 0
-                            ? currentRescheduleNoticeOrganizer
-                            : 60
-                        }
-                      />
-                      <span className="text-sm">{t("minutes")}</span>
+                    <div className="mt-4 flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">{t("organizer_reschedule_notice")}</span>
+                        <Input
+                          type="number"
+                          min={0}
+                          disabled={minimumRescheduleNoticeLocked.disabled}
+                          onChange={(evt) => {
+                            const val = Number(evt.target?.value);
+                            setRescheduleNoticeOrganizerValue(val);
+                            formMethods.setValue("metadata.rescheduleNoticeOrganizer", val, {
+                              shouldDirty: true,
+                            });
+                          }}
+                          className="m-0! block w-20 border-default text-sm [appearance:textfield] focus:z-10"
+                          defaultValue={
+                            currentRescheduleNoticeOrganizer && currentRescheduleNoticeOrganizer > 0
+                              ? currentRescheduleNoticeOrganizer
+                              : 60
+                          }
+                        />
+                        <span className="text-sm">{t("minutes")}</span>
+                      </div>
                     </div>
                   )}
                 </div>
