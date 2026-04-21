@@ -19,7 +19,8 @@ export const MORE_SEPARATOR_NAME = "more";
 
 const getNavigationItems = (
   orgBranding: OrganizationBranding,
-  hasAllInsightsAccess: boolean
+  hasAllInsightsAccess: boolean,
+  canReadOthersBookings: boolean
 ): NavigationItemType[] => [
   {
     name: "event_types_page_title",
@@ -38,11 +39,15 @@ const getNavigationItems = (
         href: "/bookings/upcoming",
         isCurrent: ({ pathname }) => pathname?.startsWith("/bookings/upcoming") ?? false,
       },
-      {
-        name: "admin_bookings",
-        href: "/bookings/admin",
-        isCurrent: ({ pathname }) => pathname?.startsWith("/bookings/admin") ?? false,
-      },
+      ...(canReadOthersBookings
+        ? [
+            {
+              name: "admin_bookings",
+              href: "/bookings/admin",
+              isCurrent: ({ pathname }) => pathname?.startsWith("/bookings/admin") ?? false,
+            } satisfies NavigationItemType,
+          ]
+        : []),
     ],
   },
   {
@@ -215,10 +220,12 @@ const platformNavigationItems: NavigationItemType[] = [
 const useNavigationItems = (isPlatformNavigation = false) => {
   const orgBranding = useOrgBranding();
   const { hasPaidPlan, isPending } = useHasPaidPlan();
+  const { data: session } = useSession();
   return useMemo(() => {
     const hasAllInsightsAccess = !isPending && !!hasPaidPlan;
+    const canReadOthersBookings = session?.user?.role === "ADMIN" || !!session?.user?.belongsToActiveTeam;
     const items = !isPlatformNavigation
-      ? getNavigationItems(orgBranding, hasAllInsightsAccess)
+      ? getNavigationItems(orgBranding, hasAllInsightsAccess, canReadOthersBookings)
       : platformNavigationItems;
 
     const desktopNavigationItems = items.filter((item) => item.name !== MORE_SEPARATOR_NAME);
@@ -234,7 +241,14 @@ const useNavigationItems = (isPlatformNavigation = false) => {
       mobileNavigationBottomItems,
       mobileNavigationMoreItems,
     };
-  }, [hasPaidPlan, isPending, isPlatformNavigation, orgBranding]);
+  }, [
+    hasPaidPlan,
+    isPending,
+    isPlatformNavigation,
+    orgBranding,
+    session?.user?.belongsToActiveTeam,
+    session?.user?.role,
+  ]);
 };
 
 export const Navigation = ({ isPlatformNavigation = false }: { isPlatformNavigation?: boolean }) => {

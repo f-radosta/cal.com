@@ -46,7 +46,7 @@ export default function MinimumCancelNoticeController({
             {lockedProps.LockedIcon}
           </p>
           <p className="mb-4 text-default text-sm">{t("minimum_cancel_notice_description")}</p>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
               <span className="text-sm">{t("organizer_cancel_notice")}</span>
               <Input
