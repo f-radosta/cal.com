@@ -61,15 +61,10 @@ import type { Dispatch, SetStateAction } from "react";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import type { z } from "zod";
-import type { CancelNoticeCustomClassNames } from "./CancelNoticeController";
-import CancelNoticeController from "./CancelNoticeController";
-import type { CustomEventTypeModalClassNames } from "./CustomEventTypeModal";
-import CustomEventTypeModal from "./CustomEventTypeModal";
-import type { EmailNotificationToggleCustomClassNames } from "./DisableAllEmailsSetting";
-import { DisableAllEmailsSetting } from "./DisableAllEmailsSetting";
-import type { DisableReschedulingCustomClassNames } from "./DisableReschedulingController";
 import DisableReschedulingController from "./DisableReschedulingController";
 import { FormBuilder } from "./FormBuilder";
+import type { MinimumCancelNoticeCustomClassNames } from "./MinimumCancelNoticeController";
+import MinimumCancelNoticeController from "./MinimumCancelNoticeController";
 import type { RequiresConfirmationCustomClassNames } from "./RequiresConfirmationController";
 import RequiresConfirmationController from "./RequiresConfirmationController";
 
@@ -85,7 +80,7 @@ export type EventAdvancedTabCustomClassNames = {
     };
   };
   requiresConfirmation?: RequiresConfirmationCustomClassNames;
-  cancelNotice?: CancelNoticeCustomClassNames;
+  minimumCancelNotice?: MinimumCancelNoticeCustomClassNames;
   disableRescheduling?: DisableReschedulingCustomClassNames;
   bookerEmailVerification?: SettingsToggleClassNames;
   canSendCalVideoTranscriptionEmails?: SettingsToggleClassNames;
@@ -529,6 +524,7 @@ export const EventAdvancedTab = ({
   const reschedulingPastBookingsLocked = shouldLockDisableProps("allowReschedulingPastBookings");
   const hideOrganizerEmailLocked = shouldLockDisableProps("hideOrganizerEmail");
   const customReplyToEmailLocked = shouldLockDisableProps("customReplyToEmail");
+  const disableCancellingLocked = shouldLockDisableProps("disableCancelling");
 
   const allowReschedulingCancelledBookingsLocked = shouldLockDisableProps(
     "allowReschedulingCancelledBookings"
@@ -724,9 +720,34 @@ export const EventAdvancedTab = ({
 
       {!isPlatform && (
         <>
-          <CancelNoticeController
+          <Controller
+            name="disabledCancelling"
+            render={({ field: { onChange, value } }) => (
+              <SettingsToggle
+                labelClassName="text-sm"
+                toggleSwitchAtTheEnd={true}
+                switchContainerClassName="border-subtle rounded-lg border py-6 px-4 sm:px-6"
+                title={t("disable_cancelling")}
+                data-testid="disable-cancelling-toggle"
+                {...disableCancellingLocked}
+                description={
+                  <LearnMoreLink
+                    t={t}
+                    i18nKey="description_disable_cancelling"
+                    href="https://cal.com/help/event-types/disable-canceling-rescheduling#disable-cancelling"
+                  />
+                }
+                checked={value}
+                onCheckedChange={(val) => {
+                  onChange(val);
+                }}
+              />
+            )}
+          />
+
+          <MinimumCancelNoticeController
             eventType={eventType}
-            customClassNames={customClassNames?.cancelNotice}
+            customClassNames={customClassNames?.minimumCancelNotice}
           />
 
           <DisableReschedulingController

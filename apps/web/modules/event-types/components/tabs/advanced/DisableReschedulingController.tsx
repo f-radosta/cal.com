@@ -105,17 +105,21 @@ export default function DisableReschedulingController({
               checked={shouldShowRadioButtons}
               onCheckedChange={(val) => {
                 if (val) {
-                  onChange(true);
-                  onDisableRescheduling(true);
-                  formMethods.setValue("minimumRescheduleNotice", null, { shouldDirty: true });
+                  // When enabling, preserve existing notice mode if values exist
+                  const hasNotice =
+                    (currentMinimumRescheduleNotice && currentMinimumRescheduleNotice > 0) ||
+                    (currentRescheduleNoticeOrganizer && currentRescheduleNoticeOrganizer > 0);
+                  if (hasNotice) {
+                    onChange(false);
+                    onDisableRescheduling(false);
+                  } else {
+                    onChange(true);
+                    onDisableRescheduling(true);
+                  }
                   setShouldShowRadioButtons(true);
                 } else {
                   onChange(false);
                   onDisableRescheduling(false);
-                  formMethods.setValue("minimumRescheduleNotice", null, { shouldDirty: true });
-                  formMethods.setValue("metadata.rescheduleNoticeOrganizer", undefined, {
-                    shouldDirty: true,
-                  });
                   setShouldShowRadioButtons(false);
                 }
               }}>
