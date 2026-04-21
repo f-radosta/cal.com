@@ -163,7 +163,7 @@ export class BookingAccessService {
       const hasTeamAdminAccess = await this.permissionCheckService.checkPermission({
         userId,
         teamId: booking.eventType.teamId,
-        permission: "booking.admin",
+        permission: "booking.read",
         fallbackRoles: [MembershipRole.OWNER, MembershipRole.ADMIN],
       });
       if (hasTeamAdminAccess) return true;
@@ -174,7 +174,7 @@ export class BookingAccessService {
       const hasParentTeamAdminAccess = await this.permissionCheckService.checkPermission({
         userId,
         teamId: booking.eventType.parent.teamId,
-        permission: "booking.admin",
+        permission: "booking.read",
         fallbackRoles: [MembershipRole.OWNER, MembershipRole.ADMIN],
       });
       if (hasParentTeamAdminAccess) return true;
@@ -190,7 +190,7 @@ export class BookingAccessService {
       const hasOrgAdminAccess = await this.permissionCheckService.checkPermission({
         userId,
         teamId: bookingOwner.organizationId,
-        permission: "booking.admin",
+        permission: "booking.read",
         fallbackRoles: [MembershipRole.OWNER, MembershipRole.ADMIN],
       });
       if (hasOrgAdminAccess) return true;
@@ -201,7 +201,7 @@ export class BookingAccessService {
       const hasTeamAdminAccess = await this.permissionCheckService.checkPermission({
         userId,
         teamId: membership.teamId,
-        permission: "booking.admin",
+        permission: "booking.read",
         fallbackRoles: [MembershipRole.OWNER, MembershipRole.ADMIN],
       });
       if (hasTeamAdminAccess) return true;
