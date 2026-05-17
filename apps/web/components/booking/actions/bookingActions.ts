@@ -249,19 +249,23 @@ export function isActionDisabled(actionId: string, context: BookingActionContext
   switch (actionId) {
     case "reschedule":
     case "reschedule_request": {
-      // Only apply minimum reschedule notice restriction if user is NOT the organizer
-      // If user is an attendee (or not authenticated), apply the restriction
       const isUserOrganizer =
         !isAttendee &&
         booking.loggedInUser?.userId &&
         booking.user?.id &&
         booking.loggedInUser.userId === booking.user.id;
+      const isAdminViewingOthersBooking = !isAttendee && !isUserOrganizer;
+      const rescheduleNoticeOrganizer =
+        (booking.eventType.metadata as { rescheduleNoticeOrganizer?: number } | undefined)
+          ?.rescheduleNoticeOrganizer ?? null;
       const isWithinMinimumNotice =
-        !isUserOrganizer &&
-        isWithinMinimumRescheduleNotice(
-          new Date(booking.startTime),
-          booking.eventType.minimumRescheduleNotice ?? null
-        );
+        !isAdminViewingOthersBooking &&
+        (isUserOrganizer
+          ? isWithinMinimumRescheduleNotice(new Date(booking.startTime), rescheduleNoticeOrganizer)
+          : isWithinMinimumRescheduleNotice(
+              new Date(booking.startTime),
+              booking.eventType.minimumRescheduleNotice ?? null
+            ));
       return (
         isCancelled ||
         isRejected ||
@@ -276,16 +280,19 @@ export function isActionDisabled(actionId: string, context: BookingActionContext
         booking.loggedInUser?.userId &&
         booking.user?.id &&
         booking.loggedInUser.userId === booking.user.id;
+      const isAdminViewingOthersBooking = !isAttendee && !isUserOrganizer;
       const cancelNoticeOrganizer =
         (booking.eventType.metadata as { cancelNoticeOrganizer?: number } | undefined)
           ?.cancelNoticeOrganizer ?? null;
       const cancelNoticeAttendee =
         (booking.eventType.metadata as { cancelNoticeAttendee?: number } | undefined)?.cancelNoticeAttendee ??
         null;
-      const isWithinCancelNotice = isWithinMinimumRescheduleNotice(
-        new Date(booking.startTime),
-        isUserOrganizer ? cancelNoticeOrganizer : cancelNoticeAttendee
-      );
+      const isWithinCancelNotice =
+        !isAdminViewingOthersBooking &&
+        isWithinMinimumRescheduleNotice(
+          new Date(booking.startTime),
+          isUserOrganizer ? cancelNoticeOrganizer : cancelNoticeAttendee
+        );
       return isDisabledCancelling || isBookingInPast || isCancelled || isRejected || isWithinCancelNotice;
     }
     case "view_recordings":

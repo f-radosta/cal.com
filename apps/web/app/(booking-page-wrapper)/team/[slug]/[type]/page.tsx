@@ -91,8 +91,8 @@ const ServerPage = async ({ params, searchParams }: PageProps) => {
     buildLegacyCtx(await headers(), await cookies(), await params, await searchParams)
   );
 
-  // Return 404 for hidden event types
-  if (props.eventData?.hidden) {
+  // Return 404 for hidden event types, unless this is a reschedule or seated booking
+  if (props.eventData?.hidden && !props.booking) {
     notFound();
   }
 

@@ -16,9 +16,10 @@ import { prisma } from "@calcom/prisma";
 import { CreationSource } from "@calcom/prisma/enums";
 
 async function handler(req: NextApiRequest & { userId?: number; traceContext: TraceContext }) {
-  // Only allow bookings from authorized platforms (platby.synaptica.cz)
+  // Only allow bookings from authorized platforms (rezervace.synaptica.cz)
   if (
     process.env.SYNAPTICA_API_SECRET &&
+    !req.body?.rescheduleUid &&
     req.headers["x-synaptica-secret"] !== process.env.SYNAPTICA_API_SECRET
   ) {
     throw new HttpError({ statusCode: 401, message: "Unauthorized" });
