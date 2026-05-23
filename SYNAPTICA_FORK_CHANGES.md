@@ -83,3 +83,18 @@ This file tracks all customizations made in the [f-radosta/cal.com](https://gith
 **Why:** Cal.com admin panel user management requires a commercial license. This endpoint enables programmatic trainer onboarding from the payment platform admin panel. One click creates the Cal.com user + team membership.
 
 **Env var:** `SYNAPTICA_API_SECRET` (same as booking endpoints). Must be set in Railway.
+
+---
+
+## 7. Force all event types hidden
+
+**Files changed:**
+- `apps/web/modules/event-types/components/EventTypeLayout.tsx`
+- `apps/web/modules/event-types/views/event-types-listing-view.tsx`
+- `packages/features/eventtypes/components/ChildrenEventTypeSelect.tsx`
+- `packages/trpc/server/routers/viewer/eventTypes/heavy/create.handler.ts`
+- `packages/trpc/server/routers/viewer/eventTypes/heavy/update.handler.ts`
+
+**What:** All event types are forced to `hidden: true` — the hidden toggle has been removed from the UI (event type edit page, event types listing, and managed event type children) and the backend silently sets `hidden: true` on both create and update regardless of what value is sent.
+
+**Why:** Synaptica never uses unhidden/public event types. Trainers could accidentally unhide team event types, making booking pages publicly accessible. This change eliminates that risk entirely.
