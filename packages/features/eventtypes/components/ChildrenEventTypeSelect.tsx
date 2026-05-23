@@ -12,7 +12,8 @@ import { Badge } from "@calcom/ui/components/badge";
 import { Button } from "@calcom/ui/components/button";
 import { ButtonGroup } from "@calcom/ui/components/buttonGroup";
 import { Select } from "@calcom/ui/components/form";
-import { Switch } from "@calcom/ui/components/form";
+// SYNAPTICA: Force all event types hidden — Switch unused
+// import { Switch } from "@calcom/ui/components/form";
 import { Tooltip } from "@calcom/ui/components/tooltip";
 
 export type { ChildrenEventType } from "@calcom/features/eventtypes/lib/childrenEventType";
@@ -135,23 +136,8 @@ export const ChildrenEventTypeSelect = ({
                     </small>
                   )}
                 </div>
+                {/* SYNAPTICA: Force all event types hidden — hidden toggle removed */}
                 <div className={classNames("flex flex-row items-center gap-2")}>
-                  <Tooltip
-                    className={customClassNames?.selectedChildrenList?.listItem?.showOnProfileTooltip}
-                    content={t("show_eventtype_on_profile")}>
-                    <div className="self-center rounded-md p-2">
-                      <Switch
-                        name="Hidden"
-                        checked={!children.hidden}
-                        onCheckedChange={(checked) => {
-                          const newData = value.map((item) =>
-                            item.owner.id === children.owner.id ? { ...item, hidden: !checked } : item
-                          );
-                          props.onChange(newData);
-                        }}
-                      />
-                    </div>
-                  </Tooltip>
                   <ButtonGroup combined>
                     {children.created && children.owner.username && (
                       <Tooltip

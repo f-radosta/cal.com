@@ -33,10 +33,13 @@ import {
   DropdownMenuTrigger,
 } from "@calcom/ui/components/dropdown";
 import { EmptyScreen } from "@calcom/ui/components/empty-screen";
-import { Label, Switch, TextField } from "@calcom/ui/components/form";
+// SYNAPTICA: Force all event types hidden — Switch and Label unused
+// import { Label, Switch, TextField } from "@calcom/ui/components/form";
+import { TextField } from "@calcom/ui/components/form";
 import { SearchIcon } from "@coss/ui/icons";
 import { HorizontalTabs } from "@calcom/ui/components/navigation";
-import { Skeleton } from "@calcom/ui/components/skeleton";
+// SYNAPTICA: Force all event types hidden — Skeleton unused
+// import { Skeleton } from "@calcom/ui/components/skeleton";
 import { showToast } from "@calcom/ui/components/toast";
 import { Tooltip } from "@calcom/ui/components/tooltip";
 import { CreateButton } from "@calcom/web/modules/ee/teams/components/createButton/CreateButton";
@@ -312,6 +315,8 @@ export const InfiniteEventTypeList = ({
     },
   });
 
+  // SYNAPTICA: Force all event types hidden — setHiddenMutation removed
+  /*
   const setHiddenMutation = trpc.viewer.eventTypesHeavy.update.useMutation({
     onMutate: async (data: { id: number; hidden?: boolean }) => {
       await utils.viewer.eventTypes.getEventTypesFromGroup.cancel();
@@ -364,6 +369,7 @@ export const InfiniteEventTypeList = ({
       console.error(err.message);
     },
   });
+  */
 
   async function moveEventType(index: number, increment: 1 | -1): Promise<void> {
     if (!pages) return;
@@ -599,6 +605,7 @@ export const InfiniteEventTypeList = ({
                           />
                         )}
                         <div className="flex items-center justify-between space-x-2 rtl:space-x-reverse">
+                          {/* SYNAPTICA: Force all event types hidden — hidden toggle removed
                           {!isManagedEventType && (
                             <>
                               {type.hidden && <span className="text-sm text-gray-400">{t("hidden")}</span>}
@@ -622,6 +629,7 @@ export const InfiniteEventTypeList = ({
                               </Tooltip>
                             </>
                           )}
+                          */}
 
                           <ButtonGroup combined>
                             {!isManagedEventType && (
@@ -840,6 +848,7 @@ export const InfiniteEventTypeList = ({
                             </>
                           )}
                           <DropdownMenuSeparator />
+                          {/* SYNAPTICA: Force all event types hidden — hidden toggle removed
                           {!isManagedEventType && (
                             <div className="hover:bg-subtle flex h-9 cursor-pointer flex-row items-center justify-between rounded-b-lg px-4 py-2 transition">
                               <Skeleton
@@ -861,6 +870,7 @@ export const InfiniteEventTypeList = ({
                               />
                             </div>
                           )}
+                          */}
                         </DropdownMenuContent>
                       </DropdownMenuPortal>
                     </Dropdown>

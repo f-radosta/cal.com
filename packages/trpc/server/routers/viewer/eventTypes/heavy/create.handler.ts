@@ -74,6 +74,8 @@ export const createHandler = async ({ ctx, input }: CreateOptions) => {
 
   const data: Prisma.EventTypeCreateInput = {
     ...rest,
+    // SYNAPTICA: Force all event types hidden
+    hidden: true,
     owner: teamId ? undefined : { connect: { id: userId } },
     metadata: (metadata as Prisma.InputJsonObject) ?? undefined,
     // Only connecting the current user for non-managed event types and non team event types

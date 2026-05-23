@@ -23,12 +23,15 @@ import {
   DropdownItem,
   DropdownMenuTrigger,
 } from "@calcom/ui/components/dropdown";
-import { Label } from "@calcom/ui/components/form";
-import { Switch } from "@calcom/ui/components/form";
+// SYNAPTICA: Comment out unused imports — removed hidden toggle
+// import { Label } from "@calcom/ui/components/form";
+// import { Switch } from "@calcom/ui/components/form";
+// import { Skeleton } from "@calcom/ui/components/skeleton";
 import { LoaderIcon } from "@coss/ui/icons";
 import { HorizontalTabs, VerticalTabs } from "@calcom/ui/components/navigation";
 import type { VerticalTabItemProps } from "@calcom/ui/components/navigation";
-import { Skeleton } from "@calcom/ui/components/skeleton";
+// SYNAPTICA: Comment out unused import — removed hidden toggle
+// import { Skeleton } from "@calcom/ui/components/skeleton";
 import { showToast } from "@calcom/ui/components/toast";
 import { Tooltip } from "@calcom/ui/components/tooltip";
 import WebShell from "@calcom/web/modules/shell/Shell";
@@ -118,6 +121,7 @@ function EventTypeSingleLayout({
       }
       CTA={
         <div className="flex items-center justify-end">
+          {/* SYNAPTICA: Force all event types hidden — hidden toggle removed
           {!formMethods.getValues("metadata")?.managedEventConfig && (
             <>
               <div
@@ -155,7 +159,7 @@ function EventTypeSingleLayout({
               <VerticalDivider className="hidden lg:block" />
             </>
           )}
-
+          */}
           {/* TODO: Figure out why combined isnt working - works in storybook */}
           <ButtonGroup combined containerProps={{ className: "border-default hidden lg:flex" }}>
             {!isManagedEventType && (
@@ -259,6 +263,7 @@ function EventTypeSingleLayout({
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
+              {/* SYNAPTICA: Force all event types hidden — hidden toggle removed
               <div className="hover:bg-subtle flex h-9 cursor-pointer flex-row items-center justify-between px-4 py-2 transition">
                 <Skeleton
                   as={Label}
@@ -274,6 +279,7 @@ function EventTypeSingleLayout({
                   }}
                 />
               </div>
+              */}
             </DropdownMenuContent>
           </Dropdown>
           <div className="border-default border-l-2" />
