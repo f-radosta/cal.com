@@ -70,3 +70,16 @@ This file tracks all customizations made in the [f-radosta/cal.com](https://gith
 - **Admin bypass:** When `!isAttendee && !isUserOrganizer` (i.e. an admin viewing someone else's booking), all notice period restrictions are skipped — Reschedule and Cancel buttons are always enabled (subject only to status/past-booking constraints). The server-side admin bypass in `handleCancelBooking.ts`, `determineReschedulePreventionRedirect.ts`, and `RegularBookingService.ts` already exists via `BookingAccessService.isUserAdminOfBooking()`.
 
 **Why:** Before this change, trainers could click Reschedule in the table view even when within their notice period (getting a silent server redirect). Admins viewing others' bookings through `/bookings/admin` had Cancel/Reschedule buttons incorrectly disabled by attendee notice periods. Both components (`BookingListItem` and `BookingActionsDropdown`) are covered since they both call `isActionDisabled`.
+
+---
+
+## 6. Trainer onboarding endpoint
+
+**Files changed:**
+- `apps/web/pages/api/synaptica/invite-trainer.ts` (new)
+
+**What:** `POST /api/synaptica/invite-trainer` with `x-synaptica-secret` header. Body: `{ email, teamId?, role? }`. Calls `inviteMembersWithNoInviterPermissionCheck` internally — creates Cal.com user (if new), creates team membership in "Trenéři Synaptica" team (id=1), sends magic link invite email (Cal.com handles this). Returns `{ userId, message }`. Defaults: `teamId=1`, `role=MEMBER`.
+
+**Why:** Cal.com admin panel user management requires a commercial license. This endpoint enables programmatic trainer onboarding from the payment platform admin panel. One click creates the Cal.com user + team membership.
+
+**Env var:** `SYNAPTICA_API_SECRET` (same as booking endpoints). Must be set in Railway.
