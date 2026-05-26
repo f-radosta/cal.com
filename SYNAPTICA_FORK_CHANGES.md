@@ -95,6 +95,25 @@ This file tracks all customizations made in the [f-radosta/cal.com](https://gith
 - `packages/trpc/server/routers/viewer/eventTypes/heavy/create.handler.ts`
 - `packages/trpc/server/routers/viewer/eventTypes/heavy/update.handler.ts`
 
-**What:** All event types are forced to `hidden: true` — the hidden toggle has been removed from the UI (event type edit page, event types listing, and managed event type children) and the backend silently sets `hidden: true` on both create and update regardless of what value is sent.
+## 7. Force all event types hidden
+
+*Updated 2026-05-26: Extended with Prisma middleware*
+
+**Files changed:**
+- `apps/web/modules/event-types/components/EventTypeLayout.tsx`
+- `apps/web/modules/event-types/views/event-types-listing-view.tsx`
+- `packages/features/eventtypes/components/ChildrenEventTypeSelect.tsx`
+- `packages/trpc/server/routers/viewer/eventTypes/heavy/create.handler.ts`
+- `packages/trpc/server/routers/viewer/eventTypes/heavy/update.handler.ts`
+- `packages/prisma/extensions/force-hidden-event-types.ts` (new)
+- `packages/prisma/index.ts`
+
+**What — UI:** The hidden toggle has been removed from the UI (event type edit page, event types listing, and managed event type children).
+
+**What — tRPC handlers:** The backend silently sets `hidden: true` on both create and update regardless of what value is sent.
+
+**What — Prisma middleware (`forceHiddenEventTypesExtension`):** A Prisma query-level extension that forces `hidden: true` on **every** `EventType` write operation — `create`, `createMany`, `update`, `updateMany`, `upsert`. This catches internal Cal.com operations that bypass tRPC (e.g., team event type copies via `assignAllTeamMembers` which use direct Prisma calls).
+
+**Why:** Synaptica never uses unhidden/public event types. Trainers could accidentally unhide team event types, making booking pages publicly accessible. Cal.com's team-to-host copy mechanism bypasses tRPC, so the handler-level fix alone was insufficient — individual trainer copies of team event types were landing with `hidden=false`.
 
 **Why:** Synaptica never uses unhidden/public event types. Trainers could accidentally unhide team event types, making booking pages publicly accessible. This change eliminates that risk entirely.
