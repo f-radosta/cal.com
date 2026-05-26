@@ -88,15 +88,6 @@ This file tracks all customizations made in the [f-radosta/cal.com](https://gith
 
 ## 7. Force all event types hidden
 
-**Files changed:**
-- `apps/web/modules/event-types/components/EventTypeLayout.tsx`
-- `apps/web/modules/event-types/views/event-types-listing-view.tsx`
-- `packages/features/eventtypes/components/ChildrenEventTypeSelect.tsx`
-- `packages/trpc/server/routers/viewer/eventTypes/heavy/create.handler.ts`
-- `packages/trpc/server/routers/viewer/eventTypes/heavy/update.handler.ts`
-
-## 7. Force all event types hidden
-
 *Updated 2026-05-26: Extended with Prisma middleware*
 
 **Files changed:**
@@ -112,8 +103,17 @@ This file tracks all customizations made in the [f-radosta/cal.com](https://gith
 
 **What — tRPC handlers:** The backend silently sets `hidden: true` on both create and update regardless of what value is sent.
 
-**What — Prisma middleware (`forceHiddenEventTypesExtension`):** A Prisma query-level extension that forces `hidden: true` on **every** `EventType` write operation — `create`, `createMany`, `update`, `updateMany`, `upsert`. This catches internal Cal.com operations that bypass tRPC (e.g., team event type copies via `assignAllTeamMembers` which use direct Prisma calls).
+**What — Prisma middleware (`forceHiddenEventTypesExtension`):** A Prisma query-level extension that forces `hidden: true` on **every** `EventType` write operation — `create`, `createMany`, `update`, `updateMany`, `upsert`. Catches internal Cal.com operations that bypass tRPC (e.g., team event type copies via `assignAllTeamMembers` which use direct Prisma calls).
 
 **Why:** Synaptica never uses unhidden/public event types. Trainers could accidentally unhide team event types, making booking pages publicly accessible. Cal.com's team-to-host copy mechanism bypasses tRPC, so the handler-level fix alone was insufficient — individual trainer copies of team event types were landing with `hidden=false`.
 
-**Why:** Synaptica never uses unhidden/public event types. Trainers could accidentally unhide team event types, making booking pages publicly accessible. This change eliminates that risk entirely.
+---
+
+## 8. Trainer info endpoint
+
+**Files changed:**
+- `apps/web/pages/api/synaptica/trainer.ts` (new)
+
+**What:** `GET /api/synaptica/trainer?userId=N` with `x-synaptica-secret` header. Returns `{ id, username, name, email, completedOnboarding }` for a Cal.com user.
+
+**Why:** Admin panel needs to check trainer onboarding status (`completedOnboarding`) and fetch their actual name/username at activation time (trainer chooses these during signup, not at invite time).
