@@ -40,6 +40,18 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     select: { id: true },
   });
 
+  if (user?.id) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        timeZone: "Europe/Prague",
+        locale: "cs",
+        hideBranding: true,
+        weekStart: "Monday",
+      },
+    });
+  }
+
   return res.status(200).json({
     message: "Trainer invited",
     usernameOrEmail: result.usernameOrEmail,
