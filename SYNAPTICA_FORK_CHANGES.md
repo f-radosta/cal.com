@@ -90,6 +90,8 @@ This file tracks all customizations made in the [f-radosta/cal.com](https://gith
 
 *Updated 2026-05-26: Extended with Prisma middleware*
 
+*Updated 2026-06-09: Fixed `import type` → `import` for `Prisma.defineExtension` (TS1361)*
+
 **Files changed:**
 - `apps/web/modules/event-types/components/EventTypeLayout.tsx`
 - `apps/web/modules/event-types/views/event-types-listing-view.tsx`
@@ -104,6 +106,8 @@ This file tracks all customizations made in the [f-radosta/cal.com](https://gith
 **What — tRPC handlers:** The backend silently sets `hidden: true` on both create and update regardless of what value is sent.
 
 **What — Prisma middleware (`forceHiddenEventTypesExtension`):** A Prisma query-level extension that forces `hidden: true` on **every** `EventType` write operation — `create`, `createMany`, `update`, `updateMany`, `upsert`. Catches internal Cal.com operations that bypass tRPC (e.g., team event type copies via `assignAllTeamMembers` which use direct Prisma calls).
+
+**Fix (2026-06-09):** `packages/prisma/extensions/force-hidden-event-types.ts` originally used `import type { Prisma }` but `Prisma.defineExtension` is a runtime API. Changed to `import { Prisma }` to fix `TS1361: 'Prisma' cannot be used as a value because it was imported using 'import type'`.
 
 **Why:** Synaptica never uses unhidden/public event types. Trainers could accidentally unhide team event types, making booking pages publicly accessible. Cal.com's team-to-host copy mechanism bypasses tRPC, so the handler-level fix alone was insufficient — individual trainer copies of team event types were landing with `hidden=false`.
 
