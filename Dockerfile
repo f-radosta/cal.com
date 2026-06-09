@@ -32,19 +32,13 @@ ENV NEXT_PUBLIC_WEBAPP_URL=http://NEXT_PUBLIC_WEBAPP_URL_PLACEHOLDER \
   BUILD_STANDALONE=true \
   CSP_POLICY=$CSP_POLICY
 
-# Copy dependency manifests FIRST (cacheable layer)
-# These change less frequently than source code
 COPY package.json yarn.lock .yarnrc.yml playwright.config.ts turbo.json i18n.json ./
 COPY .yarn ./.yarn
-COPY apps/api/v2 ./apps/api/v2
-
-# Install dependencies - cached unless manifest files change
-RUN yarn config set httpTimeout 1200000 && yarn install
-
-# Copy main source code AFTER yarn install
-# Changes here invalidate cache below this line only
 COPY apps/web ./apps/web
+COPY apps/api/v2 ./apps/api/v2
 COPY packages ./packages
+
+RUN yarn config set httpTimeout 1200000 && yarn install
 
 # Build tRPC (dependency of web build per turbo.json)
 RUN yarn workspace @calcom/trpc run build
