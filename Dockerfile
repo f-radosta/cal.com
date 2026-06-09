@@ -2,7 +2,7 @@ FROM --platform=$BUILDPLATFORM node:20 AS builder
 
 WORKDIR /calcom
 
-## If we want to read any ENV variable from .env file, we need to first accept and pass it as an argument to the Dockerfile
+## Build args
 ARG NEXT_PUBLIC_LICENSE_CONSENT
 ARG NEXT_PUBLIC_WEBSITE_TERMS_URL
 ARG NEXT_PUBLIC_WEBSITE_PRIVACY_POLICY_URL
@@ -13,8 +13,6 @@ ARG CALENDSO_ENCRYPTION_KEY=secret
 ARG MAX_OLD_SPACE_SIZE=6144
 ARG NEXT_PUBLIC_API_V2_URL
 ARG CSP_POLICY
-
-## We need these variables as required by Next.js build to create rewrites
 ARG NEXT_PUBLIC_SINGLE_ORG_SLUG
 ARG ORGANIZATIONS_ENABLED
 
@@ -34,21 +32,31 @@ ENV NEXT_PUBLIC_WEBAPP_URL=http://NEXT_PUBLIC_WEBAPP_URL_PLACEHOLDER \
   BUILD_STANDALONE=true \
   CSP_POLICY=$CSP_POLICY
 
+# Copy dependency manifests FIRST (cacheable layer)
+# These change less frequently than source code
 COPY package.json yarn.lock .yarnrc.yml playwright.config.ts turbo.json i18n.json ./
 COPY .yarn ./.yarn
-COPY apps/web ./apps/web
 COPY apps/api/v2 ./apps/api/v2
+
+# Install dependencies - cached unless manifest files change
+RUN yarn config set httpTimeout 1200000 && yarn install
+
+# Copy main source code AFTER yarn install
+# Changes here invalidate cache below this line only
+COPY apps/web ./apps/web
 COPY packages ./packages
 
-RUN yarn config set httpTimeout 1200000
-RUN npx turbo prune --scope=@calcom/web --scope=@calcom/trpc --docker
-RUN yarn install
-# Build and make embed servable from web/public/embed folder
+# Build tRPC (dependency of web build per turbo.json)
 RUN yarn workspace @calcom/trpc run build
+
+# Build embed-core
 RUN yarn --cwd packages/embeds/embed-core workspace @calcom/embed-core run build
+
+# Copy app-store static assets
 RUN yarn --cwd apps/web workspace @calcom/web run copy-app-store-static
+
+# Build Next.js web app
 RUN yarn --cwd apps/web workspace @calcom/web run build
-RUN rm -rf node_modules/.cache .yarn/cache apps/web/.next/cache
 
 FROM node:20 AS builder-two
 
