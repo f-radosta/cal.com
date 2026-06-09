@@ -52,8 +52,8 @@ async function createApp(
     // Only enable apps if they have valid keys (or don't require keys)
     const keysToValidate = (keys ?? foundApp?.keys) as Prisma.JsonValue | undefined;
     const calculatedEnabled = shouldEnableApp(dirName, keysToValidate);
-    // If app already exists and was manually enabled, preserve that state
-    const enabled = foundApp?.enabled === true ? true : calculatedEnabled;
+    // Preserve manually set enabled state for existing apps (both true and false)
+    const enabled = foundApp ? foundApp.enabled : calculatedEnabled;
     const data = {
       slug,
       dirName,
