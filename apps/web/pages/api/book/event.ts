@@ -16,6 +16,9 @@ import { prisma } from "@calcom/prisma";
 import { CreationSource } from "@calcom/prisma/enums";
 
 async function handler(req: NextApiRequest & { userId?: number; traceContext: TraceContext }) {
+  // DEBUG: Verify SYNAPTICA_API_SECRET env var presence at runtime
+  // eslint-disable-next-line no-console
+  console.log("[DEBUG] SYNAPTICA_API_SECRET present:", !!process.env.SYNAPTICA_API_SECRET, "length:", process.env.SYNAPTICA_API_SECRET?.length ?? 0);
   // Only allow bookings from authorized platforms (rezervace.synaptica.cz)
   if (
     process.env.SYNAPTICA_API_SECRET &&
