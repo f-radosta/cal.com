@@ -1,4 +1,5 @@
 import type { NextApiRequest } from "next";
+import crypto from "node:crypto";
 
 import { getServerSession } from "@calcom/features/auth/lib/getServerSession";
 import { getRegularBookingService } from "@calcom/features/bookings/di/RegularBookingService.container";
@@ -17,10 +18,21 @@ import { CreationSource } from "@calcom/prisma/enums";
 
 async function handler(req: NextApiRequest & { userId?: number; traceContext: TraceContext }) {
   // Only allow bookings from authorized platforms (rezervace.synaptica.cz)
+  // Railway intermittently fails to inject SYNAPTICA_API_SECRET into the runtime,
+  // so we fall back to the Deployment table where the SHA-256 hash is stored.
+  const secretHash =
+    process.env.SYNAPTICA_API_SECRET ||
+    (
+      await prisma.deployment.findFirst({
+        select: { synapticaApiSecretHash: true },
+      })
+    )?.synapticaApiSecretHash;
+
   if (
-    process.env.SYNAPTICA_API_SECRET &&
+    secretHash &&
     !req.body?.rescheduleUid &&
-    req.headers["x-synaptica-secret"] !== process.env.SYNAPTICA_API_SECRET
+    crypto.createHash("sha256").update(req.headers["x-synaptica-secret"] || "").digest("hex") !==
+      secretHash
   ) {
     throw new HttpError({ statusCode: 401, message: "Unauthorized" });
   }

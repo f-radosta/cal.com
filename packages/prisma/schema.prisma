@@ -1641,6 +1641,7 @@ model Deployment {
   // We encrypt the signature token in the deployment table with the current calendso encryption key
   signatureTokenEncrypted String?
   agreedLicenseAt         DateTime?
+  synapticaApiSecretHash  String?
 }
 
 enum TimeUnit {

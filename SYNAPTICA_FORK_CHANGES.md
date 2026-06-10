@@ -19,6 +19,8 @@ This file tracks all customizations made in the [f-radosta/cal.com](https://gith
 
 **Env var:** `SYNAPTICA_API_SECRET` — set in Railway. Any random string works; it's compared as a plain equality check, not a hash. n8n workflows must send the matching value in the `x-synaptica-secret` HTTP header.
 
+**Fallback (2026-06-10):** Because Railway intermittently fails to inject `SYNAPTICA_API_SECRET` into the Docker runtime (confirmed by runtime inspection showing the env var missing while `DATABASE_URL` is present), the endpoints also read `synapticaApiSecretHash` from the `Deployment` table (single-row config table). If the env var is absent, the SHA-256 hash of the incoming `x-synaptica-secret` header is compared against the DB value. If neither the env var nor the DB hash is set, the check is bypassed (dev/PR mode).
+
 ---
 
 ## 2. Return 404 for hidden event types on public booking pages
@@ -82,7 +84,7 @@ This file tracks all customizations made in the [f-radosta/cal.com](https://gith
 
 **Why:** Cal.com admin panel user management requires a commercial license. This endpoint enables programmatic trainer onboarding from the payment platform admin panel. One click creates the Cal.com user + team membership.
 
-**Env var:** `SYNAPTICA_API_SECRET` (same as booking endpoints). Must be set in Railway.
+**Env var:** `SYNAPTICA_API_SECRET` (same as booking endpoints). Must be set in Railway. Falls back to `synapticaApiSecretHash` in the `Deployment` table if the env var is not injected by Railway.
 
 ---
 

@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import crypto from "node:crypto";
 
 import { HttpError } from "@calcom/lib/http-error";
 import { defaultResponder } from "@calcom/lib/server/defaultResponder";
@@ -12,9 +13,20 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     return res.status(405).json({ message: "Method not allowed" });
   }
 
+  // Railway intermittently fails to inject SYNAPTICA_API_SECRET into the runtime,
+  // so we fall back to the Deployment table where the SHA-256 hash is stored.
+  const secretHash =
+    process.env.SYNAPTICA_API_SECRET ||
+    (
+      await prisma.deployment.findFirst({
+        select: { synapticaApiSecretHash: true },
+      })
+    )?.synapticaApiSecretHash;
+
   if (
-    process.env.SYNAPTICA_API_SECRET &&
-    req.headers["x-synaptica-secret"] !== process.env.SYNAPTICA_API_SECRET
+    secretHash &&
+    crypto.createHash("sha256").update(req.headers["x-synaptica-secret"] || "").digest("hex") !==
+      secretHash
   ) {
     throw new HttpError({ statusCode: 401, message: "Unauthorized" });
   }
