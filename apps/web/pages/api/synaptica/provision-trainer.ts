@@ -103,7 +103,9 @@ async function ensureEventType(userId: number, scheduleId: number): Promise<numb
       where: { id: existing.id },
       data: {
         hidden: true,
-        scheduleId,
+        // Relation connects — feat-branch Prisma client rejects scalar userId/scheduleId
+        // when owner/schedule are also used.
+        schedule: { connect: { id: scheduleId } },
         users: { connect: { id: userId } },
       },
     });
@@ -116,9 +118,8 @@ async function ensureEventType(userId: number, scheduleId: number): Promise<numb
       slug: EVENT_SLUG,
       length: 60,
       hidden: true,
-      userId,
-      scheduleId,
       owner: { connect: { id: userId } },
+      schedule: { connect: { id: scheduleId } },
       users: { connect: { id: userId } },
     },
   });
