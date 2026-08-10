@@ -123,3 +123,17 @@ This file tracks all customizations made in the [f-radosta/cal.com](https://gith
 **What:** `GET /api/synaptica/trainer?userId=N` with `x-synaptica-secret` header. Returns `{ id, username, name, email, completedOnboarding }` for a Cal.com user.
 
 **Why:** Admin panel needs to check trainer onboarding status (`completedOnboarding`) and fetch their actual name/username at activation time (trainer chooses these during signup, not at invite time).
+
+## 10. Silent provision + host APIs (2026-08-10)
+
+**What:** Secret-gated `/api/synaptica/*` so Synaptica Platform manages hosts without Cal UI/emails:
+- `POST /api/synaptica/provision-trainer` — create-or-link user, membership, default schedule, hidden `neurofeedback` event type
+- `GET /api/synaptica/trainer` — status including Google/schedule flags
+- `GET/PUT /api/synaptica/schedule` — weekly availability
+- `GET /api/synaptica/google-connect` + `google-callback`
+- `GET /api/synaptica/bookings` + cancel
+- `invite-trainer` kept as silent alias of provision-trainer
+
+**Auth:** `assertSynapticaSecret` accepts raw or SHA-256 env secret, with `Deployment.synapticaApiSecretHash` fallback when Railway skips env injection.
+
+**Env:** `SYNAPTICA_PLATFORM_URL` for OAuth return allowlist; add `/api/synaptica/google-callback` to Google OAuth redirect URIs.
