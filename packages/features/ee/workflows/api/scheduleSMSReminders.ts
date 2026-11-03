@@ -9,6 +9,7 @@ import { isAttendeeAction } from "@calcom/features/ee/workflows/lib/actionHelper
 import { scheduleSmsOrFallbackEmail } from "@calcom/features/ee/workflows/lib/reminders/messageDispatcher";
 import { UrlShortenerFactory } from "@calcom/features/url-shortener/UrlShortenerFactory";
 import { DUB_SMS_DOMAIN, DUB_SMS_FOLDER_ID } from "@calcom/lib/constants";
+import { customerReplyToEmail } from "@calcom/lib/getReplyToEmail";
 import { getTranslation } from "@calcom/i18n/server";
 import { getTimeFormatStringFromUserTimeFormat } from "@calcom/lib/timeFormat";
 import prisma from "@calcom/prisma";
@@ -208,7 +209,7 @@ export async function handler(req: NextRequest) {
               ? {
                   email: targetAttendee?.email,
                   t: await getTranslation(locale || "en", "common"),
-                  replyTo: reminder.booking?.user?.email ?? "",
+                  replyTo: customerReplyToEmail(reminder.booking?.eventType?.customReplyToEmail),
                   workflowStepId: reminder.workflowStep.id,
                 }
               : undefined,

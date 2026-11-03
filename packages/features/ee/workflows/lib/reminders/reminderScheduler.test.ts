@@ -68,7 +68,7 @@ describe("reminderScheduler", () => {
       expect(sendOrScheduleWorkflowEmails).toHaveBeenCalledWith(
         expect.objectContaining({
           to: ["attendee@example.com"],
-          replyTo: "organizer@example.com",
+          replyTo: "info@synaptica.cz", // pragma: allowlist secret
           referenceUid: "uuid-123",
         })
       );
@@ -118,7 +118,7 @@ describe("reminderScheduler", () => {
       expect(sendOrScheduleWorkflowEmails).toHaveBeenCalledWith(
         expect.objectContaining({
           to: ["user-attendee@example.com"],
-          replyTo: "user-organizer@example.com",
+          replyTo: "info@synaptica.cz", // pragma: allowlist secret
           referenceUid: "uuid-456",
         })
       );

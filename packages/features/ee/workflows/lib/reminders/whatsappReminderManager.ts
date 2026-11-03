@@ -1,4 +1,5 @@
 import dayjs from "@calcom/dayjs";
+import { customerReplyToEmail } from "@calcom/lib/getReplyToEmail";
 import logger from "@calcom/lib/logger";
 import { getTranslation } from "@calcom/i18n/server";
 import prisma from "@calcom/prisma";
@@ -210,7 +211,7 @@ export const scheduleWhatsappReminder = async (args: ScheduleTextReminderArgs & 
             ? {
                 email: evt.attendees[0].email,
                 t: await getTranslation(evt.attendees[0].language.locale ?? "en", "common"),
-                replyTo: evt.organizer.email,
+                replyTo: customerReplyToEmail(evt.eventType?.customReplyToEmail),
               }
             : undefined,
           creditCheckFn,
@@ -246,7 +247,7 @@ export const scheduleWhatsappReminder = async (args: ScheduleTextReminderArgs & 
               ? {
                   email: evt.attendees[0].email,
                   t: await getTranslation(evt.attendees[0].language.locale ?? "en", "common"),
-                  replyTo: evt.organizer.email,
+                  replyTo: customerReplyToEmail(evt.eventType?.customReplyToEmail),
                   workflowStepId,
                 }
               : undefined,

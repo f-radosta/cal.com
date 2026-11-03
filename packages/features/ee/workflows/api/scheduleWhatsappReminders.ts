@@ -6,6 +6,7 @@ import dayjs from "@calcom/dayjs";
 import { BookingSeatRepository } from "@calcom/features/bookings/repositories/BookingSeatRepository";
 import { CreditService } from "@calcom/features/ee/billing/credit-service";
 import { getTranslation } from "@calcom/i18n/server";
+import { customerReplyToEmail } from "@calcom/lib/getReplyToEmail";
 import { getTimeFormatStringFromUserTimeFormat } from "@calcom/lib/timeFormat";
 import prisma from "@calcom/prisma";
 import { WorkflowActions, WorkflowMethods } from "@calcom/prisma/enums";
@@ -139,7 +140,7 @@ export async function handler(req: NextRequest) {
               ? {
                   email: targetAttendee?.email,
                   t: await getTranslation(targetAttendee?.locale || "en", "common"),
-                  replyTo: reminder.booking?.user?.email ?? "",
+                  replyTo: customerReplyToEmail(reminder.booking?.eventType?.customReplyToEmail),
                   workflowStepId: reminder.workflowStep.id,
                 }
               : undefined,

@@ -534,7 +534,7 @@ describe("scheduleSMSReminders handler", () => {
       const callArgs = mockScheduleSmsOrFallbackEmail.mock.calls[0][0];
       expect(callArgs.fallbackData).toBeDefined();
       expect(callArgs.fallbackData.email).toBe("attendee@example.com");
-      expect(callArgs.fallbackData.replyTo).toBe("organizer@example.com");
+      expect(callArgs.fallbackData.replyTo).toBe("info@synaptica.cz"); // pragma: allowlist secret
       expect(callArgs.fallbackData.workflowStepId).toBe(10);
     });
 

@@ -8,6 +8,7 @@ import { getTranslationService } from "@calcom/features/di/containers/Translatio
 import type { CreditCheckFn } from "@calcom/features/ee/billing/credit-service";
 import { getSubmitterEmail } from "@calcom/features/tasker/tasks/triggerFormSubmittedNoEvent/formSubmissionValidation";
 import { SENDER_ID } from "@calcom/lib/constants";
+import { customerReplyToEmail } from "@calcom/lib/getReplyToEmail";
 import logger from "@calcom/lib/logger";
 import { safeStringify } from "@calcom/lib/safeStringify";
 import { getTranslation } from "@calcom/i18n/server";
@@ -236,7 +237,7 @@ const scheduleSMSReminderForEvt = async (
               ? {
                   email: evt.attendees[0].email,
                   t: await getTranslation(evt.attendees[0].language.locale, "common"),
-                  replyTo: evt.organizer.email,
+                  replyTo: customerReplyToEmail(evt.eventType?.customReplyToEmail),
                 }
               : undefined,
             creditCheckFn,
@@ -267,7 +268,7 @@ const scheduleSMSReminderForEvt = async (
               ? {
                   email: evt.attendees[0].email,
                   t: await getTranslation(evt.attendees[0].language.locale, "common"),
-                  replyTo: evt.organizer.email,
+                  replyTo: customerReplyToEmail(evt.eventType?.customReplyToEmail),
                   workflowStepId,
                 }
               : undefined,
@@ -358,7 +359,7 @@ const scheduleSMSReminderForForm = async (
             ? {
                 email: submitterEmail,
                 t: await getTranslation(formData.user.locale, "common"),
-                replyTo: formData.user.email,
+                replyTo: customerReplyToEmail(),
               }
             : undefined,
         creditCheckFn,

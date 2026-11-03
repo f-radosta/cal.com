@@ -13,6 +13,7 @@ import { WorkflowService } from "@calcom/features/ee/workflows/lib/service/Workf
 import type { Workflow, WorkflowStep } from "@calcom/features/ee/workflows/lib/types";
 import { WorkflowReminderRepository } from "@calcom/features/ee/workflows/repositories/WorkflowReminderRepository";
 import { formatCalEventExtended } from "@calcom/lib/formatCalendarEvent";
+import { customerReplyToEmail } from "@calcom/lib/getReplyToEmail";
 import { withReporting } from "@calcom/lib/sentryWrapper";
 import { getTranslation } from "@calcom/i18n/server";
 import { checkSMSRateLimit } from "@calcom/lib/smsLockState";
@@ -322,7 +323,7 @@ const _cancelScheduledMessagesAndScheduleEmails = async ({
             to: [sendTo.email],
             subject: t("notification_about_your_booking"),
             html: messageBody,
-            replyTo: msg.booking?.user?.email ?? "",
+            replyTo: customerReplyToEmail(),
             sendAt: msg.scheduledDate,
             referenceUid: msg.uuid || undefined,
           });

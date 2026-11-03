@@ -10,6 +10,7 @@ import { getSubmitterEmail } from "@calcom/features/tasker/tasks/triggerFormSubm
 import { UserRepository } from "@calcom/features/users/repositories/UserRepository";
 import { getVideoCallUrlFromCalEvent } from "@calcom/lib/CalEventParser";
 import { SENDER_NAME, WEBSITE_URL } from "@calcom/lib/constants";
+import { customerReplyToEmail } from "@calcom/lib/getReplyToEmail";
 import {
   buildPlatformCancelLink,
   buildPlatformRescheduleLink,
@@ -618,7 +619,7 @@ export class EmailWorkflowService {
 
     const replyTo = evt.hideOrganizerEmail
       ? customReplyToEmail
-      : customReplyToEmail || evt.organizer.email;
+      : customerReplyToEmail(customReplyToEmail);
 
     return {
       subject: emailContent.emailSubject,
